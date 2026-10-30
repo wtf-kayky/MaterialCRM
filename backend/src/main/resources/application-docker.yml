@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    hikari:
+      initialization-fail-timeout: 60000
+
