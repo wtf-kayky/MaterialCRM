@@ -1,18 +1,39 @@
 name: materialcrm
 
 services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-materialcrm}
+      POSTGRES_USER: ${POSTGRES_USER:-materialcrm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - materialcrm_database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-materialcrm} -d ${POSTGRES_DB:-materialcrm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://${SUPABASE_DB_HOST:?Defina SUPABASE_DB_HOST no .env}:${SUPABASE_DB_PORT:-5432}/${SUPABASE_DB_NAME:-postgres}?sslmode=require
-      SPRING_DATASOURCE_USERNAME: ${SUPABASE_DB_USER:?Defina SUPABASE_DB_USER no .env}
-      SPRING_DATASOURCE_PASSWORD: ${SUPABASE_DB_PASSWORD:?Defina SUPABASE_DB_PASSWORD no .env}
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/${POSTGRES_DB:-materialcrm}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-materialcrm}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+      # Temporário durante a migração: a autenticação local será implementada na próxima entrega.
       SUPABASE_JWT_ISSUER: ${SUPABASE_JWT_ISSUER:?Defina SUPABASE_JWT_ISSUER no .env}
       SUPABASE_JWKS_URI: ${SUPABASE_JWKS_URI:?Defina SUPABASE_JWKS_URI no .env}
       SUPABASE_JWT_AUDIENCE: ${SUPABASE_JWT_AUDIENCE:-authenticated}
       DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}
       DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
+    depends_on:
+      database:
+        condition: service_healthy
     ports:
       - "${BACKEND_PORT:-8081}:8080"
     healthcheck:
@@ -35,3 +56,6 @@ services:
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     restart: unless-stopped
+
+volumes:
+  materialcrm_database:
