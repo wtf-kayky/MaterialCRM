@@ -1,34 +1,15 @@
 name: materialcrm
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-materialcrm}
-      POSTGRES_USER: ${POSTGRES_USER:-materialcrm}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend
     environment:
-      SPRING_PROFILES_ACTIVE: docker
-      DB_HOST: postgres
-      DB_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-materialcrm}
-      POSTGRES_USER: ${POSTGRES_USER:-materialcrm}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
-    depends_on:
-      postgres:
-        condition: service_healthy
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${SUPABASE_DB_HOST:?Defina SUPABASE_DB_HOST no .env}:${SUPABASE_DB_PORT:-5432}/${SUPABASE_DB_NAME:-postgres}?sslmode=require
+      SPRING_DATASOURCE_USERNAME: ${SUPABASE_DB_USER:?Defina SUPABASE_DB_USER no .env}
+      SPRING_DATASOURCE_PASSWORD: ${SUPABASE_DB_PASSWORD:?Defina SUPABASE_DB_PASSWORD no .env}
+      DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}
+      DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
     ports:
       - "${BACKEND_PORT:-8081}:8080"
     healthcheck:
@@ -48,7 +29,3 @@ services:
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     restart: unless-stopped
-
-volumes:
-  postgres-data:
-
