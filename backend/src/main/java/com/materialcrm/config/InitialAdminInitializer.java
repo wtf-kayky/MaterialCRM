@@ -25,8 +25,9 @@ public class InitialAdminInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (email.isBlank() && password.isBlank()) return;
-        if (email.isBlank() || password.isBlank() || password.length() < 12) {
+        // Senha vazia significa bootstrap desativado, inclusive nos reinícios posteriores.
+        if (password.isBlank()) return;
+        if (email.isBlank() || password.length() < 12) {
             throw new IllegalStateException("Informe e-mail e senha inicial com pelo menos 12 caracteres.");
         }
         Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM app_user", Integer.class);
