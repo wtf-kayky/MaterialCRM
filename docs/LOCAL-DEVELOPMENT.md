@@ -24,7 +24,7 @@ API Spring Boot (máquina local)
 
 - Docker Engine e Docker Compose.
 - Acesso ao projeto Supabase Cloud do MaterialCRM.
-- Supabase CLI instalado e autenticado para aplicar migrations.
+- Supabase CLI instalado.
 - Credenciais do banco disponíveis em Project Settings → Database.
 
 ## Configurar variáveis
@@ -34,18 +34,30 @@ API Spring Boot (máquina local)
 3. Para um backend Spring Boot de longa duração em redes IPv4, prefira o Supavisor **Session mode**. A conexão direta pode exigir IPv6; não use Transaction mode com prepared statements JDBC sem configurar e validar essa compatibilidade.
 4. Nunca coloque senha do banco, `service_role` ou outro segredo em variáveis `VITE_*`, no frontend ou no Git.
 
-## Aplicar migrations
+## Validar migrations
 
 O schema é versionado exclusivamente em `supabase/migrations`. Flyway não é utilizado.
 
-Depois de instalar e autenticar o Supabase CLI:
+Depois de instalar o Supabase CLI, valide a migration em um Supabase local (Docker):
 
 ```bash
+supabase --version
+supabase start
+supabase db reset
+```
+
+Se o reset local concluir sem erros, autentique e vincule o repositório ao projeto Cloud. Revise a migration e o destino antes de enviar qualquer alteração ao banco remoto:
+
+```bash
+supabase login
 supabase link --project-ref hmkkzlstjpnsfrwqcjax
+supabase migration list
 supabase db push
 ```
 
-Revise a migration antes de aplicá-la em qualquer ambiente compartilhado. A migration inicial cria o perfil `public.app_user` ligado por FK a `auth.users(id)`; ela não cria contas de funcionários automaticamente.
+Para criar migrations futuras, use `supabase migration new nome_descritivo` e escreva o SQL no arquivo gerado. Não crie uma segunda trilha Flyway.
+
+A migration inicial cria o perfil `public.app_user` ligado por FK a `auth.users(id)`; ela não cria contas de funcionários automaticamente. As tabelas públicas começam com RLS habilitado e sem acesso direto concedido a `anon` ou `authenticated`.
 
 ## Executar a aplicação
 
@@ -70,10 +82,11 @@ A interface fica disponível em `http://localhost:8080` por padrão e a API em `
 
 ## Critérios de aceite da fundação
 
-- [ ] Migration inicial aplicada em ambiente Supabase de desenvolvimento.
+- [ ] Migration inicial aplicada e validada em Supabase local.
+- [ ] Migration aplicada em ambiente Supabase Cloud de desenvolvimento após revisão.
 - [ ] API inicia localmente e conecta ao banco usando TLS.
 - [ ] Frontend e API continuam executando localmente.
-- [ ] JWT Supabase validado pela API (etapa de autenticação).
+- [ ] JWT Supabase validado pela API.
 - [ ] Autorização multiempresa/multifilial validada por testes negativos.
 - [ ] Estratégia de backup, restauração e indisponibilidade documentada antes da produção.
 
