@@ -9,16 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@phosphor-icons/react": "^2.1.7",
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "@phosphor-icons/react": "2.1.7",
+    "@supabase/supabase-js": "2.118.0",
+    "@vitejs/plugin-react": "5.0.4",
+    "vite": "6.4.1",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
   },
   "devDependencies": {
-    "typescript": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "typescript": "5.9.2",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9"
   }
 }
-
