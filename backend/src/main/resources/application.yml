@@ -11,17 +11,9 @@ spring:
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
       connection-timeout: 30000
       validation-timeout: 5000
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${SUPABASE_JWT_ISSUER}
-          jwk-set-uri: ${SUPABASE_JWKS_URI}
-          jws-algorithms:
-            - ES256
-            - RS256
-          audiences:
-            - ${SUPABASE_JWT_AUDIENCE:authenticated}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 server:
   port: 8080
