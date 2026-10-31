@@ -2,30 +2,34 @@
 
 ## Entrega
 
-Esta entrega disponibiliza a base executável para os módulos futuros:
+Disponibilizar a base executável para os módulos futuros:
 
-- API Spring Boot com Java 21, Actuator e Flyway;
-- PostgreSQL 16 com volume persistente;
+- API Spring Boot com Java 21 e Actuator;
+- PostgreSQL gerenciado no Supabase Cloud;
+- autenticação Supabase Auth com validação de JWT no backend;
 - frontend React com TypeScript e Vite;
 - Nginx como servidor do frontend e proxy da API;
-- Docker Compose para inicializar os três serviços;
-- primeira migração do banco e contrato OpenAPI versionado.
+- Docker Compose para iniciar frontend e API localmente;
+- migrations versionadas pelo Supabase CLI;
+- contrato OpenAPI versionado.
 
 ## Como executar
 
-1. Copie `.env.example` para `.env` e escolha uma senha segura em `POSTGRES_PASSWORD`.
-2. Na raiz do projeto, execute `docker compose up --build`.
-3. Abra `http://localhost:8080`.
-4. Consulte `http://localhost:8081/actuator/health` para validar a API.
+1. Copie `.env.example` para `.env` e preencha os dados de conexão do Supabase Cloud.
+2. Execute `docker compose config` para validar a configuração.
+3. Na raiz do projeto, execute `docker compose up --build`.
+4. Abra `http://localhost:8080`.
+5. Consulte `http://localhost:8081/actuator/health` para validar a API.
 
 ## Critérios de validação
 
-- PostgreSQL deve ficar saudável antes de a API iniciar.
-- Flyway deve aplicar `V1__create_application_metadata.sql`.
-- `/actuator/health` deve responder com estado `UP`.
-- A tela inicial deve indicar que a API local está disponível.
+- A API conecta ao Supabase PostgreSQL por TLS.
+- Supabase CLI aplica as migrations no ambiente de desenvolvimento.
+- `/actuator/health` responde com estado `UP`.
+- A tela inicial consome a API local.
+- JWT Supabase é validado no backend.
+- A autorização multiempresa/multifilial é coberta por testes positivos e negativos.
 
 ## Limites desta etapa
 
-Ainda não há autenticação, telas operacionais, entidades comerciais ou regras de venda. Esses itens começam nas etapas posteriores, a partir da base criada aqui.
-
+Ainda não há autenticação funcional, telas operacionais, entidades comerciais ou regras de venda completas. Esses itens serão implementados em sequência, sem antecipar módulos comerciais.
