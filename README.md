@@ -2,34 +2,39 @@
 
 CRM e sistema de gestão comercial para lojas de materiais de construção, com suporte a múltiplas empresas e filiais.
 
-## Arquitetura atual
+## Arquitetura
 
 - **Frontend:** React + TypeScript, executado localmente.
 - **Backend:** API REST Spring Boot, executada localmente.
 - **Banco de dados:** PostgreSQL no Supabase Cloud.
-- **Autenticação:** Supabase Auth; o backend valida os JWTs e aplica as permissões de negócio.
+- **Autenticação:** Supabase Auth; o backend valida JWTs via JWKS.
 - **Migrations:** Supabase CLI em `supabase/migrations`.
 
-A execução local permite que os computadores da loja acessem o sistema pela rede LAN. **Não é um modo offline**: login e dados dependem de internet e do Supabase Cloud.
+A aplicação roda em localhost/rede LAN. Login e dados dependem de internet e do Supabase Cloud; não é um modo offline.
 
-## Desenvolvimento
+## Estado do projeto
 
-Consulte [docs/LOCAL-DEVELOPMENT.md](docs/LOCAL-DEVELOPMENT.md) para configurar o ambiente local, as variáveis do Supabase e o Docker Compose.
+- [x] Decisão arquitetural e documentação inicial.
+- [x] Schema inicial de organização e identidade criado no Supabase Cloud.
+- [x] 10 tabelas com RLS habilitado.
+- [x] Índices de chaves estrangeiras complementares.
+- [x] Migration inicial e migration de índices versionadas no GitHub.
+- [x] API protegida com Spring Security Resource Server e endpoint `GET /api/v1/me`.
+- [ ] Configurar chave JWT assimétrica no Supabase Auth e testar a validação real.
+- [ ] Conectar a interface de login ao Supabase Auth.
+- [ ] Implementar autorização multiempresa/multifilial.
+- [ ] Validar build, testes e execução local.
 
-As decisões arquiteturais aprovadas estão em [docs/decisions](docs/decisions/).
+## Documentação
+
+- [Desenvolvimento local](docs/LOCAL-DEVELOPMENT.md)
+- [Arquitetura](docs/ARCHITECTURE.md)
+- [Modelo de dados](docs/DATA-MODEL.md)
+- [Segurança](docs/SECURITY-BASELINE.md)
+- [Configuração de Supabase Auth](docs/SUPABASE-AUTH-SETUP.md)
+- [Integração GitHub ↔ Supabase](docs/SUPABASE-GITHUB-INTEGRATION.md)
+- [Etapa 02](docs/STAGE-02-TECHNICAL-FOUNDATION.md)
 
 ## Segurança
 
-- Nunca versionar o arquivo `.env` ou credenciais reais.
-- Nunca expor senha do banco ou chave `service_role` no frontend.
-- O frontend conversa com a API; não acessa diretamente as tabelas operacionais.
-- A API deve validar identidade e autorização por empresa e filial no servidor.
-
-## Progresso
-
-- [x] Decisão de arquitetura: aplicação local + Supabase Cloud.
-- [x] Migration inicial de identidade e organização criada.
-- [x] Configuração inicial de conexão PostgreSQL TLS no backend.
-- [ ] Aplicar e validar a migration no projeto Supabase de desenvolvimento.
-- [ ] Implementar e testar validação JWT e autorização multiempresa/multifilial.
-- [ ] Validar build e execução local com Docker.
+Nunca versionar `.env`, senha do banco, JWT secret, chave privada ou secret API key. O frontend não acessa diretamente as tabelas operacionais.
