@@ -1,42 +1,47 @@
-# Etapa 02 — Integração técnica e autenticação
+# Etapa 02 — Fundação local-first e separação dos ambientes
 
-## Entregas gravadas no repositório
+## Objetivo
 
-- API Spring Boot com Java 21, JDBC e Actuator.
-- PostgreSQL gerenciado no Supabase Cloud.
-- Schema inicial de identidade, empresa, filial, papéis, permissões e auditoria aplicado.
-- Migrations versionadas pelo Supabase CLI.
-- Spring Security Resource Server configurado para validar JWTs Supabase via JWKS (ES256/RS256).
-- Endpoint autenticado `GET /api/v1/me`.
-- Cliente React Supabase Auth com login por senha, persistência de sessão e logout.
-- Token enviado ao endpoint de identidade antes de mostrar o painel técnico.
-- Docker Compose com parâmetros públicos do Supabase no build do frontend.
-- Proxy Vite/Nginx preservando o prefixo `/api`.
+Implementar a base técnica dos dois ambientes de produção, começando pelo MaterialCRM Local. A operação da loja deve funcionar sem internet; o Admin central será desenvolvido como aplicação separada.
 
-## Próximas tarefas
+## Decisões já registradas
 
-1. Confirmar/configurar chave assimétrica de assinatura JWT no Supabase Auth.
-2. Preencher o arquivo local `.env` com conexão PostgreSQL e publishable key.
-3. Criar conta de teste em Supabase Auth (sem cadastro público).
-4. Gerar lockfile npm e executar build frontend.
-5. Executar build Maven e subir Docker Compose.
-6. Testar login, renovação de sessão, logout e rejeição de tokens inválidos.
-7. Relacionar o `sub` do JWT com `public.app_user.auth_user_id`.
-8. Implementar autorização por empresa, filial, papel e permissão.
-9. Definir papel PostgreSQL de privilégio mínimo para JDBC e validar isolamento.
+- MaterialCRM Admin central hospedado para gestão de clientes, planos, assinaturas, pagamentos e licenças.
+- MaterialCRM Local instalado em cada loja, com frontend, API, autenticação e PostgreSQL locais.
+- Comunicação Admin ↔ Local assíncrona, via HTTPS, sem dependência no fluxo transacional comercial.
+- Licença digital verificável offline; vencimento durante desconexão não bloqueia a operação local.
+- Dados e autenticação de cada loja permanecem locais.
+
+Consulte [ADR 002](decisions/ADR-002-admin-and-local-offline-first.md) e [Arquitetura](ARCHITECTURE.md).
+
+## Sequência de implementação
+
+1. Substituir a topologia Compose legada por frontend + API + PostgreSQL local persistente.
+2. Remover a dependência de runtime do Supabase Auth e do JWT JWKS remoto.
+3. Implementar autenticação local segura, provisionamento inicial do administrador e autorização.
+4. Criar migrations para o banco local e validar a inicialização vazia.
+5. Implementar endpoint de saúde e verificações de dependência local.
+6. Criar backup e restauração do PostgreSQL e testar persistência após reinício.
+7. Validar acesso pela LAN e operação com a internet desconectada.
+8. Definir contrato e identidade de instalação para sincronização com o Admin.
+9. Implementar emissão/verificação de licença digital e comportamento offline.
+10. Criar o esqueleto independente do MaterialCRM Admin.
 
 ## Critérios de aceite
 
-- [ ] Login real com Supabase Auth.
-- [ ] Sem token, API responde 401 nos endpoints protegidos.
-- [ ] Token válido responde 200 no endpoint `/api/v1/me`.
-- [ ] Token expirado, issuer incorreto e audience incorreta são rejeitados.
-- [ ] Sessão persiste após atualizar o navegador e logout encerra a sessão.
-- [ ] Usuário sem perfil interno ou sem vínculo ativo não acessa recursos empresariais.
-- [ ] Tentativas de cruzar empresa/filial são rejeitadas por testes.
-- [ ] API conecta ao Supabase Cloud por TLS usando credencial de banco com privilégio mínimo.
+- [ ] Docker Compose inicia PostgreSQL, API e frontend.
+- [ ] PostgreSQL persiste dados após recriação de contêiner.
+- [ ] Usuário local consegue autenticar sem internet.
+- [ ] Endpoint protegido rejeita usuário não autenticado.
+- [ ] Senhas são armazenadas com hash seguro.
+- [ ] Permissões por empresa e filial são validadas no backend.
+- [ ] Acesso pelo IP LAN funciona em outro computador.
+- [ ] Vendas e operações locais não fazem chamadas síncronas ao Admin.
+- [ ] A licença vencida durante desconexão não interrompe operações locais.
+- [ ] Backup e restauração são testados.
+- [ ] Sincronização é retomável e idempotente.
 - [ ] Build frontend, build Maven e Docker Compose validados.
 
 ## Limites
 
-O endpoint `/api/v1/me` é apenas a primeira verificação de identidade. Ele ainda não implementa autorização empresarial nem é uma API operacional. Nenhum módulo de vendas ou estoque deve ser iniciado antes dos controles de acesso e testes desta etapa.
+O repositório contém uma base inicial construída para a arquitetura Supabase Cloud. Ela não é considerada pronta para produção offline. O código será migrado por etapas, preservando o schema Supabase existente e sem alterar a branch `main`.
