@@ -30,7 +30,7 @@ API Spring Boot (localhost:8081)
 
 ## Configurar variáveis
 
-1. Copie `.env.example` para `.env` na raiz do repositório.
+1. Copie `.env.example` para `.env` na raiz do repositório (PowerShell: `Copy-Item .env.example .env`).
 2. Preencha host, porta, database, usuário e senha apresentados pelo Supabase.
 3. Copie a **publishable key** em Project Settings → API Keys para `VITE_SUPABASE_PUBLISHABLE_KEY`. A URL já aponta para o projeto MaterialCRM.
 4. Confira as configurações de assinatura JWT em Authentication → Signing Keys; a API valida chaves assimétricas ES256 ou RS256 publicadas no JWKS.
@@ -74,22 +74,16 @@ A interface fica disponível em `http://localhost:8080` por padrão e a API em `
 
 ## Executar sem Docker (desenvolvimento)
 
-Terminal 1 — API, na pasta `backend`:
+Para desenvolvimento sem Docker, configure no ambiente de execução da API as mesmas variáveis `SPRING_DATASOURCE_*`, `SUPABASE_JWT_ISSUER` e `SUPABASE_JWKS_URI` que o Compose recebe do `.env`. No IntelliJ, configure-as em **Run → Edit Configurations → Environment variables**. Depois execute `mvn spring-boot:run` na pasta `backend`.
 
-```bash
-./mvnw spring-boot:run
-```
-
-No Windows, use `mvnw.cmd spring-boot:run` se o Maven Wrapper estiver disponível; caso contrário, use `mvn spring-boot:run`.
-
-Terminal 2 — frontend, na pasta `frontend`:
+Na pasta `frontend`, execute:
 
 ```bash
 npm install
 npm run dev
 ```
 
-O Vite lê as variáveis da raiz do repositório e encaminha `/api` para `http://localhost:8081`. Acesse `http://localhost:5173`.
+O primeiro `npm install` gera `package-lock.json`; mantenha esse arquivo versionado para instalações reproduzíveis. O Vite lê as variáveis da raiz do repositório e encaminha `/api` para `http://localhost:8081`. Acesse `http://localhost:5173`.
 
 ## Identidade e autorização
 
