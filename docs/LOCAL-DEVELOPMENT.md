@@ -80,15 +80,21 @@ A interface fica disponível em `http://localhost:8080` por padrão e a API em `
 - O frontend não acessa diretamente tabelas operacionais.
 - Não presuma que RLS protege automaticamente consultas JDBC executadas com uma credencial privilegiada. A estratégia de papel de banco de menor privilégio e/ou contexto de tenant será validada antes de expor operações de negócio.
 
-## Critérios de aceite da fundação
+## Critérios de aceite da fundação — Etapa 1
 
+- [ ] Supabase CLI reconhece a configuração do projeto.
 - [ ] Migration inicial aplicada e validada em Supabase local.
-- [ ] Migration aplicada em ambiente Supabase Cloud de desenvolvimento após revisão.
+- [ ] Migration aplicada em ambiente Supabase Cloud de desenvolvimento após revisão explícita.
+- [ ] Flyway removido; Supabase CLI é a única trilha de migrations.
+- [ ] Arquitetura, modelo de identidade e execução local documentados.
+
+## Critérios de integração — Etapa 2
+
 - [ ] API inicia localmente e conecta ao banco usando TLS.
 - [ ] Frontend e API continuam executando localmente.
 - [ ] JWT Supabase validado pela API.
-- [ ] Autorização multiempresa/multifilial validada por testes negativos.
-- [ ] Estratégia de backup, restauração e indisponibilidade documentada antes da produção.
+- [ ] Autorização multiempresa/multifilial validada por testes positivos e negativos.
+- [ ] Estratégia de papel de banco de menor privilégio validada antes de operações comerciais.
 
 ## Limites operacionais
 
