@@ -18,6 +18,7 @@
 - Cadastrar usuários, perfis e permissões por módulo.
 - Limitar o acesso do usuário às filiais autorizadas.
 - Registrar eventos de auditoria.
+- Provisionar funcionários por convite ou administrador autorizado.
 
 ### Comercial
 
@@ -42,10 +43,10 @@
 
 ## Requisitos não funcionais
 
-- Operação local acessível pela LAN.
-- Persistência em PostgreSQL local.
+- Frontend e backend executados localmente e acessíveis pela LAN.
+- PostgreSQL gerenciado pelo Supabase Cloud; login e dados exigem conexão com internet.
 - Operações críticas com transações e validação de concorrência.
 - Backup e restauração documentados e testáveis.
 - Interface responsiva para computadores de balcão e gestão.
 - API documentada por OpenAPI.
-
+- Segredos mantidos somente no backend e em variáveis de ambiente protegidas.
