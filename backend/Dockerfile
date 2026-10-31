@@ -7,9 +7,10 @@ RUN mvn -B -q package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN addgroup -S materialcrm && adduser -S materialcrm -G materialcrm
+RUN apk add --no-cache wget \
+    && addgroup -S materialcrm \
+    && adduser -S materialcrm -G materialcrm
 COPY --from=build /workspace/target/materialcrm-api-0.1.0-SNAPSHOT.jar app.jar
 USER materialcrm
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
-
