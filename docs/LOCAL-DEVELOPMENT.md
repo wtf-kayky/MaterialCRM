@@ -1,86 +1,40 @@
 # Desenvolvimento do MaterialCRM Local
 
-## Topologia atual desta etapa
-
-O Docker Compose já possui PostgreSQL local com volume persistente, API Spring Boot e frontend React:
-
-```text
-Computadores da loja (LAN)
-          |
-          v
-Nginx / React :8080
-          |
-          v
-Spring Boot API :8081
-          |
-          v
-PostgreSQL local (rede interna Docker)
-          |
-          v
-Volume persistente materialcrm_database
-```
-
-## Estado importante da migração
-
-**O banco operacional já está sendo direcionado para o PostgreSQL local. A autenticação ainda é temporariamente Supabase Auth.** Portanto, esta entrega isolada ainda não permite operar totalmente sem internet: o login será migrado para autenticação local na próxima tarefa. Não trate a instalação como pronta para produção offline.
-
-O banco PostgreSQL não publica a porta 5432 no host por padrão. Somente os serviços Docker acessam o banco pela rede interna.
-
-## Pré-requisitos
-
-- Docker Engine e Docker Compose.
-- Para desenvolvimento sem Docker: Node.js 22/npm e JDK 21/Maven 3.9+.
-- Na instalação inicial, internet para baixar imagens e dependências. Após completar a migração de autenticação, a operação normal não dependerá da internet.
-
 ## Configuração
 
-1. Copie .env.example para .env na raiz do repositório.
-2. Defina uma senha forte em POSTGRES_PASSWORD.
-3. Durante esta fase de transição, configure também a publishable key Supabase e mantenha os parâmetros JWT de autenticação temporária.
-4. Nunca envie .env ao Git ou compartilhe senhas em mensagens.
-
-PowerShell:
+1. Copie `.env.example` para `.env`.
+2. Defina uma senha forte para PostgreSQL.
+3. Gere `APP_JWT_SECRET_BASE64` com 32 bytes aleatórios em Base64. No PowerShell:
 
 ```powershell
-Copy-Item .env.example .env
+$bytes = New-Object byte[] 32
+[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
 ```
 
-## Executar os contêineres
+4. Antes do primeiro início, informe `BOOTSTRAP_ADMIN_EMAIL` e uma `BOOTSTRAP_ADMIN_PASSWORD` com pelo menos 12 caracteres.
+5. Nunca versione ou compartilhe o arquivo .env.
 
-Na raiz do repositório:
+## Inicialização
 
-```bash
+Na raiz do projeto:
+
+```powershell
 docker compose config
 docker compose up --build -d
 docker compose ps
 ```
 
-A interface será publicada em http://localhost:8080 no servidor e a API em http://localhost:8081.
+O PostgreSQL é privado na rede Docker e usa o volume `materialcrm_database`. A interface fica em `http://localhost:8080` e a API em `http://localhost:8081`. Em outros computadores da loja, use `http://IP-DO-SERVIDOR:8080`.
 
-Em outro computador da loja, use o IP LAN do servidor, por exemplo http://192.168.0.100:8080. Configure reserva DHCP ou IP estático no servidor e libere a porta 8080 no firewall apenas para a rede local.
+## Primeiro administrador
 
-## Persistência do PostgreSQL
+No primeiro início, a API cria o administrador informado no .env somente se a tabela de usuários estiver vazia. A senha é armazenada com BCrypt. Depois de confirmar a criação, remova `BOOTSTRAP_ADMIN_PASSWORD` do .env e reinicie o backend. Não existe cadastro público.
 
-O serviço database utiliza o volume nomeado materialcrm_database. Reiniciar ou recriar o contêiner não deve remover os dados.
+## Autenticação
 
-- docker compose down preserva o volume.
-- **Não execute docker compose down -v em ambiente com dados que deseja manter:** a opção -v remove volumes.
-- Volume não substitui backup. A rotina de backup e restauração será entregue e testada em etapa própria.
+O login é feito localmente por `POST /api/v1/auth/login`. A API emite JWT HS256 assinado por uma chave exclusiva da instalação. O frontend mantém o token em sessionStorage e usa-o para chamar `GET /api/v1/me`. O banco aplica migrations automaticamente com Flyway.
 
-## Verificações
+## Estado de validação
 
-```bash
-docker compose ps
-docker compose logs database
-docker compose logs backend
-```
-
-O PostgreSQL deve ficar healthy antes da API iniciar. A API possui healthcheck do Actuator; a imagem instala wget para que o healthcheck funcione no contêiner.
-
-## Próximas entregas
-
-1. Remover a dependência de Supabase Auth/JWKS e implementar login local seguro.
-2. Criar migrations para o banco local e provisionamento seguro do primeiro administrador.
-3. Validar login e operações com a internet desconectada.
-4. Implementar backup/restauração e testes de acesso LAN.
-5. Construir sincronização e licenciamento com MaterialCRM Admin.
+O código foi gravado no GitHub, mas ainda precisa de build Maven, build frontend e execução real via Docker Compose. Teste também o login com a internet desligada antes de considerar a instalação pronta para produção.
