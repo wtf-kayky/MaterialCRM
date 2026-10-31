@@ -11,6 +11,13 @@ spring:
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
       connection-timeout: 30000
       validation-timeout: 5000
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SUPABASE_JWT_ISSUER}
+          audiences:
+            - ${SUPABASE_JWT_AUDIENCE:authenticated}
 
 server:
   port: 8080
@@ -33,13 +40,3 @@ info:
   app:
     name: MaterialCRM API
     version: 0.1.0
-
-# Supabase Auth — access tokens JWT
-spring:
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${SUPABASE_JWT_ISSUER}
-          audiences:
-            - ${SUPABASE_JWT_AUDIENCE:authenticated}
