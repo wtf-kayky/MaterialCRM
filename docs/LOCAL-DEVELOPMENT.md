@@ -1,32 +1,82 @@
-# Execução local planejada
+# Desenvolvimento local com Supabase Cloud
 
-## Topologia prevista
+## Topologia
 
-O servidor local da empresa executará PostgreSQL, backend e frontend por Docker Compose. Navegadores dos computadores de balcão, caixa, estoque e gerência acessarão o frontend pela rede LAN.
+O frontend e a API rodam localmente. O PostgreSQL e a autenticação ficam no projeto Supabase Cloud.
 
 ```text
-Computadores na LAN ──► Frontend ──► API ──► PostgreSQL
+Navegadores na LAN
+       |
+       v
+Frontend React (máquina local)
+       |
+       v
+API Spring Boot (máquina local)
+       |
+       +------ Supabase PostgreSQL (TLS)
+       |
+       +------ Supabase Auth (JWT)
 ```
 
-## Serviços planejados
+**Importante:** localhost/LAN descreve onde a aplicação roda, não um modo offline. Login e dados dependem de internet e do Supabase Cloud.
 
-| Serviço | Responsabilidade | Persistência |
-| --- | --- | --- |
-| `frontend` | Interface React servida localmente | Não aplicável |
-| `backend` | API e regras de negócio | Não aplicável |
-| `postgres` | Dados operacionais | Volume local dedicado |
+## Pré-requisitos
 
-## Variáveis necessárias
+- Docker Engine e Docker Compose.
+- Acesso ao projeto Supabase Cloud do MaterialCRM.
+- Supabase CLI instalado e autenticado para aplicar migrations.
+- Credenciais do banco disponíveis em Project Settings → Database.
 
-O arquivo `.env` local, nunca versionado, fornecerá ao menos:
+## Configurar variáveis
 
-- credenciais do PostgreSQL;
-- nome do banco;
-- segredo de assinatura de sessão;
-- endereço e porta públicos na LAN;
-- configuração de backup.
+1. Copie `.env.example` para `.env`.
+2. Preencha host, porta, database, usuário e senha apresentados pelo Supabase.
+3. Para um backend Spring Boot de longa duração em redes IPv4, prefira o Supavisor **Session mode**. A conexão direta pode exigir IPv6; não use Transaction mode com prepared statements JDBC sem configurar e validar essa compatibilidade.
+4. Nunca coloque senha do banco, `service_role` ou outro segredo em variáveis `VITE_*`, no frontend ou no Git.
 
-## Critério para a Etapa 02
+## Aplicar migrations
 
-A fundação técnica estará pronta quando Docker Compose iniciar os três serviços, a API responder a uma verificação de saúde e o frontend conseguir consumir a API localmente.
+O schema é versionado exclusivamente em `supabase/migrations`. Flyway não é utilizado.
 
+Depois de instalar e autenticar o Supabase CLI:
+
+```bash
+supabase link --project-ref hmkkzlstjpnsfrwqcjax
+supabase db push
+```
+
+Revise a migration antes de aplicá-la em qualquer ambiente compartilhado. A migration inicial cria o perfil `public.app_user` ligado por FK a `auth.users(id)`; ela não cria contas de funcionários automaticamente.
+
+## Executar a aplicação
+
+Com o arquivo `.env` preenchido:
+
+```bash
+docker compose config
+docker compose up --build -d
+docker compose ps
+```
+
+A interface fica disponível em `http://localhost:8080` por padrão e a API em `http://localhost:8081`. Para outros computadores da rede, use o endereço LAN do servidor e libere somente as portas necessárias no firewall.
+
+## Identidade e autorização
+
+- Supabase Auth mantém credenciais e emite access tokens JWT.
+- `public.app_user` guarda o perfil do funcionário e o vínculo com a empresa; não guarda senha nem hash de senha.
+- A API deverá validar assinatura, emissor, audiência e expiração do JWT antes de aceitar a identidade.
+- A API deverá verificar no servidor o vínculo do usuário com a empresa e a filial em cada operação.
+- O frontend não acessa diretamente tabelas operacionais.
+- Não presuma que RLS protege automaticamente consultas JDBC executadas com uma credencial privilegiada. A estratégia de papel de banco de menor privilégio e/ou contexto de tenant será validada antes de expor operações de negócio.
+
+## Critérios de aceite da fundação
+
+- [ ] Migration inicial aplicada em ambiente Supabase de desenvolvimento.
+- [ ] API inicia localmente e conecta ao banco usando TLS.
+- [ ] Frontend e API continuam executando localmente.
+- [ ] JWT Supabase validado pela API (etapa de autenticação).
+- [ ] Autorização multiempresa/multifilial validada por testes negativos.
+- [ ] Estratégia de backup, restauração e indisponibilidade documentada antes da produção.
+
+## Limites operacionais
+
+Uma queda de internet interrompe acesso ao banco e autenticação em nuvem. Uma queda de energia interrompe a máquina local; um nobreak ajuda apenas com energia, não substitui conexão de internet. Backup e restauração precisam ser testados separadamente.
