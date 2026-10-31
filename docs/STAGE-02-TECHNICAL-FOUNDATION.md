@@ -1,35 +1,45 @@
-# Etapa 02 — Fundação técnica
+# Etapa 02 — Integração técnica e autenticação
 
-## Entrega
+## Entregas em andamento
 
-Disponibilizar a base executável para os módulos futuros:
+- API Spring Boot com Java 21 e Actuator.
+- PostgreSQL gerenciado no Supabase Cloud.
+- Schema inicial de identidade, empresa, filial, papéis, permissões e auditoria aplicado.
+- Migrations versionadas pelo Supabase CLI.
+- Spring Security Resource Server configurado para validar JWTs Supabase por JWKS.
+- Endpoint autenticado `GET /api/v1/me`.
+- Frontend React com TypeScript e Vite.
+- Docker Compose para iniciar frontend e API localmente.
 
-- API Spring Boot com Java 21 e Actuator;
-- PostgreSQL gerenciado no Supabase Cloud;
-- autenticação Supabase Auth com validação de JWT no backend;
-- frontend React com TypeScript e Vite;
-- Nginx como servidor do frontend e proxy da API;
-- Docker Compose para iniciar frontend e API localmente;
-- migrations versionadas pelo Supabase CLI;
-- contrato OpenAPI versionado.
+## O que já foi gravado
 
-## Como executar
+- `backend/src/main/java/com/materialcrm/config/SecurityConfig.java`
+- `backend/src/main/java/com/materialcrm/api/AuthController.java`
+- Dependência `spring-boot-starter-oauth2-resource-server`.
+- Validação de issuer, audience, expiração e assinatura assimétrica ES256/RS256.
+- Contrato OpenAPI do endpoint de identidade.
 
-1. Copie `.env.example` para `.env` e preencha os dados de conexão do Supabase Cloud.
-2. Execute `docker compose config` para validar a configuração.
-3. Na raiz do projeto, execute `docker compose up --build`.
-4. Abra `http://localhost:8080`.
-5. Consulte `http://localhost:8081/actuator/health` para validar a API.
+## Próximas tarefas desta etapa
 
-## Critérios de validação
+1. Configurar/confirmar chave assimétrica de assinatura JWT no Supabase Auth (ES256 ou RS256).
+2. Conectar a tela de login React ao Supabase Auth, com dependência versionada e lockfile.
+3. Enviar o access token à API local.
+4. Relacionar o `sub` do JWT com `public.app_user.auth_user_id`.
+5. Implementar autorização por empresa, filial, papel e permissão.
+6. Definir papel PostgreSQL de privilégio mínimo para JDBC e validar o isolamento.
+7. Executar build Maven, build frontend, testes de autenticação e Docker Compose.
 
-- A API conecta ao Supabase PostgreSQL por TLS.
-- Supabase CLI aplica as migrations no ambiente de desenvolvimento.
-- `/actuator/health` responde com estado `UP`.
-- A tela inicial consome a API local.
-- JWT Supabase é validado no backend.
-- A autorização multiempresa/multifilial é coberta por testes positivos e negativos.
+## Critérios de aceite
 
-## Limites desta etapa
+- [ ] Login real com Supabase Auth.
+- [ ] Sem token, API responde 401 nos endpoints protegidos.
+- [ ] Token válido responde 200 no endpoint `/api/v1/me`.
+- [ ] Token expirado, issuer incorreto e audience incorreta são rejeitados.
+- [ ] Usuário sem perfil interno ou sem vínculo ativo não acessa recursos empresariais.
+- [ ] Tentativas de cruzar empresa/filial são rejeitadas por testes.
+- [ ] API conecta ao Supabase Cloud por TLS usando credencial de banco com privilégio mínimo.
+- [ ] Build e execução local validados.
 
-Ainda não há autenticação funcional, telas operacionais, entidades comerciais ou regras de venda completas. Esses itens serão implementados em sequência, sem antecipar módulos comerciais.
+## Limites
+
+O endpoint `/api/v1/me` é apenas a primeira verificação de identidade. Ele ainda não implementa autorização empresarial nem é uma API operacional. Nenhum módulo de vendas ou estoque deve ser iniciado antes dos controles de acesso e testes desta etapa.
