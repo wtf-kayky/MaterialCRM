@@ -25,10 +25,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/${POSTGRES_DB:-materialcrm}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-materialcrm}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
-      # Temporário durante a migração: a autenticação local será implementada na próxima entrega.
-      SUPABASE_JWT_ISSUER: ${SUPABASE_JWT_ISSUER:?Defina SUPABASE_JWT_ISSUER no .env}
-      SUPABASE_JWKS_URI: ${SUPABASE_JWKS_URI:?Defina SUPABASE_JWKS_URI no .env}
-      SUPABASE_JWT_AUDIENCE: ${SUPABASE_JWT_AUDIENCE:-authenticated}
+      APP_JWT_SECRET_BASE64: ${APP_JWT_SECRET_BASE64:?Gere APP_JWT_SECRET_BASE64 no .env}
+      APP_JWT_TTL_MINUTES: ${APP_JWT_TTL_MINUTES:-480}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-5}
       DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
     depends_on:
@@ -47,9 +47,6 @@ services:
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?Defina VITE_SUPABASE_URL no .env}
-        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?Defina VITE_SUPABASE_PUBLISHABLE_KEY no .env}
     depends_on:
       backend:
         condition: service_healthy
