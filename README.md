@@ -2,48 +2,42 @@
 
 CRM e sistema de gestão comercial para lojas de materiais de construção, com suporte a múltiplas empresas e filiais.
 
+## Ambientes de produção
+
+O produto terá dois ambientes separados:
+
+- **MaterialCRM Admin:** painel central hospedado para administrar clientes, planos, pagamentos, assinaturas, licenças e instalações.
+- **MaterialCRM Local:** aplicação instalada no servidor de cada loja, acessível pela rede LAN e com PostgreSQL e autenticação locais.
+
+O MaterialCRM Local é local-first: vendas, estoque, clientes, financeiro e login não dependem de conexão com a internet depois da instalação. A comunicação com o Admin é assíncrona e usada para sincronização administrativa e de licenças.
+
 ## Arquitetura
 
-- **Frontend:** React + TypeScript, executado localmente.
-- **Backend:** API REST Spring Boot, executada localmente.
-- **Banco de dados:** PostgreSQL no Supabase Cloud.
-- **Autenticação:** Supabase Auth; o frontend envia JWT e o backend valida via JWKS.
-- **Migrations:** Supabase CLI em `supabase/migrations`.
+- **Frontend:** React + TypeScript.
+- **Backend:** API REST Spring Boot modular.
+- **Banco local:** PostgreSQL em contêiner com volume persistente.
+- **Banco central:** separado, pertencente ao MaterialCRM Admin.
+- **Implantação Local:** Docker Compose.
+- **Acesso:** navegador no próprio servidor por localhost ou nos demais computadores pelo IP LAN do servidor.
 
-A aplicação roda em localhost/rede LAN. Login e dados dependem de internet e do Supabase Cloud; não é um modo offline.
+## Licenciamento e operação offline
 
-## Primeiro acesso local
+Cada instalação mantém uma licença digital assinada e validável localmente. A chave privada permanece no Admin; a instalação recebe apenas a chave pública. Se a assinatura vencer enquanto a loja estiver offline, as operações locais continuam. A instalação sincroniza e revalida o estado assim que a conexão retornar.
 
-1. Copie `.env.example` para `.env` e preencha as credenciais do banco e a publishable key Supabase.
-2. Crie um usuário de teste em Authentication → Users no Supabase Dashboard.
-3. Confira se o projeto usa uma chave de assinatura JWT assimétrica ES256 ou RS256.
-4. Execute `docker compose up --build -d`.
-5. Acesse `http://localhost:8080`.
-
-Consulte [Desenvolvimento local](docs/LOCAL-DEVELOPMENT.md) e [Configuração Supabase Auth](docs/SUPABASE-AUTH-SETUP.md).
-
-## Estado do projeto
-
-- [x] Schema inicial de identidade e organização no Supabase Cloud (10 tabelas).
-- [x] RLS habilitado nas tabelas iniciais e acesso direto de browser revogado.
-- [x] API Spring Security Resource Server e endpoint `GET /api/v1/me`.
-- [x] Frontend conectado ao fluxo de login/logout Supabase Auth.
-- [x] Encaminhamento de `/api` corrigido para preservar o prefixo.
-- [ ] Confirmar chave JWT assimétrica no Supabase Auth.
-- [ ] Gerar e validar lockfile npm, executar build frontend e Maven.
-- [ ] Testar login completo no ambiente local.
-- [ ] Implementar autorização multiempresa/multifilial e vínculo `app_user`.
+Uma suspensão remota só pode ser aplicada quando a instalação receber a atualização. O Admin deve mostrar a data da última comunicação.
 
 ## Documentação
 
-- [Desenvolvimento local](docs/LOCAL-DEVELOPMENT.md)
 - [Arquitetura](docs/ARCHITECTURE.md)
+- [Requisitos](docs/REQUIREMENTS.md)
 - [Modelo de dados](docs/DATA-MODEL.md)
 - [Segurança](docs/SECURITY-BASELINE.md)
-- [Configuração Supabase Auth](docs/SUPABASE-AUTH-SETUP.md)
-- [Integração GitHub ↔ Supabase](docs/SUPABASE-GITHUB-INTEGRATION.md)
 - [Etapa 02](docs/STAGE-02-TECHNICAL-FOUNDATION.md)
+- [Decisão arquitetural 001 — Supabase](docs/decisions/ADR-001-supabase-cloud-auth.md)
+- [Decisão arquitetural 002 — Admin e Local offline-first](docs/decisions/ADR-002-admin-and-local-offline-first.md)
 
-## Segurança
+## Estado do projeto
 
-Nunca versionar `.env`, senha do banco, JWT secret, chave privada ou secret API key. O frontend recebe somente a URL do projeto e a publishable key. O acesso aos dados de negócio continua passando pelo backend.
+A arquitetura anterior baseada em Supabase Cloud como banco operacional e autenticação obrigatória foi substituída nesta linha de desenvolvimento pela arquitetura local-first. O schema Supabase já criado será preservado; não é dependência de runtime do MaterialCRM Local.
+
+A fundação ainda precisa ser implementada e validada. Não considerar o ambiente local pronto para produção até concluir builds, testes de autenticação, persistência, backup/restauração e acesso por LAN.
