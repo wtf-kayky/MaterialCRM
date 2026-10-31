@@ -1,109 +1,61 @@
-# Desenvolvimento local com Supabase Cloud
+# Desenvolvimento local do MaterialCRM Local
 
 ## Topologia
 
-O frontend e a API rodam localmente. O PostgreSQL e a autenticação ficam no projeto Supabase Cloud.
+O ambiente local executa frontend, API, autenticação e PostgreSQL no servidor da loja. A internet não faz parte do caminho das operações comerciais.
 
 ```text
-Navegadores na LAN
-       |
-       v
-Frontend React (localhost:8080 no Docker; 5173 no Vite)
-       |
-       v
-API Spring Boot (localhost:8081)
-       |
-       +------ Supabase PostgreSQL (TLS)
-       |
-       +------ Supabase Auth (JWT)
-```
+Computadores da loja (LAN)
+          |
+          v
+Nginx / React (porta 8080)
+          |
+          v
+Spring Boot API
+     |         |
+     v         v
+PostgreSQL   Autenticação local
+     |
+     +---- volume persistente
 
-**Importante:** localhost/LAN descreve onde a aplicação roda, não um modo offline. Login e dados dependem de internet e do Supabase Cloud.
+Internet (quando disponível) ---> sincronização HTTPS com MaterialCRM Admin
+```
 
 ## Pré-requisitos
 
 - Docker Engine e Docker Compose.
-- Node.js 22 e npm 10 para execução de desenvolvimento sem Docker.
-- JDK 21 e Maven 3.9+ para executar a API fora do Docker.
-- Acesso ao projeto Supabase Cloud do MaterialCRM.
-- Credenciais do banco disponíveis em Project Settings → Database.
+- Para desenvolvimento sem Docker: Node.js 22/npm e JDK 21/Maven 3.9+.
+- Acesso à internet é necessário para baixar imagens/dependências na instalação inicial e para sincronizar com o Admin, mas não para operação normal depois de instalado.
 
-## Configurar variáveis
+## Endereços de acesso
 
-1. Copie `.env.example` para `.env` na raiz do repositório (PowerShell: `Copy-Item .env.example .env`).
-2. Preencha host, porta, database, usuário e senha apresentados pelo Supabase.
-3. Copie a **publishable key** em Project Settings → API Keys para `VITE_SUPABASE_PUBLISHABLE_KEY`. A URL já aponta para o projeto MaterialCRM.
-4. Confira as configurações de assinatura JWT em Authentication → Signing Keys; a API valida chaves assimétricas ES256 ou RS256 publicadas no JWKS.
-5. Para um backend Spring Boot de longa duração em redes IPv4, prefira o Supavisor **Session mode**. A conexão direta pode exigir IPv6; não use Transaction mode com prepared statements JDBC sem configurar e validar essa compatibilidade.
-6. Nunca coloque senha do banco, JWT secret, chave privada, `service_role` ou secret API key em variáveis `VITE_*`, no frontend ou no Git. A publishable key é a única chave Supabase que deve chegar ao navegador.
+- No próprio servidor: `http://localhost:8080`.
+- Em outro computador da loja: `http://IP-DO-SERVIDOR:8080`, por exemplo `http://192.168.0.100:8080`.
+- Reserve um IP no roteador ou configure endereço estático para o servidor. Libere no firewall somente as portas necessárias à LAN.
+- Não exponha diretamente as portas do banco de dados à rede de usuários ou à internet.
 
-## Criar uma conta de funcionário para o primeiro acesso
+## Banco e persistência
 
-O cadastro público não está habilitado. Para criar a conta de teste:
+O PostgreSQL será executado como serviço do Docker Compose, com volume nomeado. Reiniciar ou recriar o contêiner não pode apagar os dados. A rotina de backup deverá gerar cópia externa e documentar restauração. Não considere o volume Docker como backup.
 
-1. Abra Authentication → Users no Dashboard do Supabase.
-2. Use **Add user** para criar um usuário com e-mail e senha de teste.
-3. Confirme o usuário, se o painel solicitar.
-4. Essa conta permite testar a identidade Supabase. O vínculo com empresa/filial em `public.app_user` será criado e validado na próxima tarefa de autorização empresarial; até lá, não há acesso às áreas comerciais.
+## Primeiro administrador local
 
-## Validar migrations
+O primeiro administrador será criado por um fluxo de bootstrap seguro. Não serão usados usuário/senha padrão embutidos no código ou no repositório. O fluxo deverá exigir segredo temporário fornecido no primeiro início e invalidá-lo após o cadastro.
 
-O schema é versionado exclusivamente em `supabase/migrations`. Flyway não é utilizado.
+## Autenticação
 
-Depois de instalar o Supabase CLI, valide a migration em um Supabase local (Docker):
+As credenciais e sessões dos funcionários serão gerenciadas localmente pela API. Senhas serão armazenadas apenas como hashes seguros. O login não poderá depender de Supabase Auth, JWKS ou qualquer serviço remoto.
 
-```bash
-supabase --version
-supabase start
-supabase db reset
-```
+## MaterialCRM Admin e sincronização
 
-O projeto Cloud já recebeu as migrations iniciais. Para mudanças futuras, use `supabase migration new nome_descritivo`, revise o SQL localmente e só aplique no Cloud depois da revisão.
+A instalação local terá uma identidade própria e uma fila local de sincronização. Quando houver internet, enviará dados administrativos e de licença ao Admin via HTTPS. Falhas de conexão serão repetidas posteriormente; elas nunca devem impedir vendas ou outras operações locais.
 
-## Executar com Docker
+A licença é verificada no backend local por assinatura digital. A chave privada fica no Admin; a instalação recebe apenas a chave pública. Vencimento durante uma desconexão não bloqueia o CRM. A instalação atualiza seu estado quando a conexão retornar.
 
-Com o arquivo `.env` preenchido:
+## Executar
 
-```bash
-docker compose config
-docker compose up --build -d
-docker compose ps
-```
+Os comandos definitivos de `docker compose config`, `docker compose up --build -d`, inspeção de saúde, backup e restauração serão publicados após a implementação do compose local-first. Não use o compose legado com variáveis Supabase como procedimento de produção.
 
-A interface fica disponível em `http://localhost:8080` por padrão e a API em `http://localhost:8081`. Para outros computadores da rede, use o endereço LAN do servidor e libere somente as portas necessárias no firewall.
+## Estado de validação
 
-## Executar sem Docker (desenvolvimento)
-
-Para desenvolvimento sem Docker, configure no ambiente de execução da API as mesmas variáveis `SPRING_DATASOURCE_*`, `SUPABASE_JWT_ISSUER` e `SUPABASE_JWKS_URI` que o Compose recebe do `.env`. No IntelliJ, configure-as em **Run → Edit Configurations → Environment variables**. Depois execute `mvn spring-boot:run` na pasta `backend`.
-
-Na pasta `frontend`, execute:
-
-```bash
-npm install
-npm run dev
-```
-
-O primeiro `npm install` gera `package-lock.json`; mantenha esse arquivo versionado para instalações reproduzíveis. O Vite lê as variáveis da raiz do repositório e encaminha `/api` para `http://localhost:8081`. Acesse `http://localhost:5173`.
-
-## Identidade e autorização
-
-- Supabase Auth mantém credenciais e emite access tokens JWT.
-- `public.app_user` guarda o perfil do funcionário e o vínculo com a empresa; não guarda senha nem hash de senha.
-- A API valida assinatura, emissor, audiência e expiração do JWT antes de aceitar a identidade.
-- `GET /api/v1/me` é o teste inicial de identidade e exige token válido.
-- A API deverá verificar no servidor o vínculo do usuário com a empresa e a filial em cada operação.
-- O frontend não acessa diretamente tabelas operacionais.
-- Não presuma que RLS protege automaticamente consultas JDBC executadas com uma credencial privilegiada. A estratégia de papel de banco de menor privilégio e/ou contexto de tenant será validada antes de expor operações de negócio.
-
-## Critérios de aceite — primeiro acesso
-
-- [ ] Configurar variáveis locais e conectar o backend ao PostgreSQL Cloud por TLS.
-- [ ] Criar conta de teste em Supabase Auth.
-- [ ] Login real pelo frontend.
-- [ ] API validar o JWT e responder 200 em `/api/v1/me`.
-- [ ] Sessão persistir após recarregar a página e ser encerrada pelo botão Sair.
-- [ ] Build frontend, build Maven e Docker Compose validados.
-
-## Limites operacionais
-
-Uma queda de internet interrompe acesso ao banco e autenticação em nuvem. Uma queda de energia interrompe a máquina local; um nobreak ajuda apenas com energia, não substitui conexão de internet. Backup e restauração precisam ser testados separadamente.
+A arquitetura foi documentada, mas o ambiente ainda não foi validado em uma máquina local. Builds, autenticação local, persistência PostgreSQL, acesso LAN, modo sem internet e restauração de backup continuam como critérios pendentes.
