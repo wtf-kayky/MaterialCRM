@@ -16,6 +16,10 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${SUPABASE_JWT_ISSUER}
+          jwk-set-uri: ${SUPABASE_JWKS_URI}
+          jws-algorithms:
+            - ES256
+            - RS256
           audiences:
             - ${SUPABASE_JWT_AUDIENCE:authenticated}
 
