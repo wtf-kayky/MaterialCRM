@@ -33,3 +33,13 @@ info:
   app:
     name: MaterialCRM API
     version: 0.1.0
+
+# Supabase Auth — access tokens JWT
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SUPABASE_JWT_ISSUER}
+          audiences:
+            - ${SUPABASE_JWT_AUDIENCE:authenticated}
