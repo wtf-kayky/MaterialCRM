@@ -1,61 +1,86 @@
-# Desenvolvimento local do MaterialCRM Local
+# Desenvolvimento do MaterialCRM Local
 
-## Topologia
+## Topologia atual desta etapa
 
-O ambiente local executa frontend, API, autenticação e PostgreSQL no servidor da loja. A internet não faz parte do caminho das operações comerciais.
+O Docker Compose já possui PostgreSQL local com volume persistente, API Spring Boot e frontend React:
 
 ```text
 Computadores da loja (LAN)
           |
           v
-Nginx / React (porta 8080)
+Nginx / React :8080
           |
           v
-Spring Boot API
-     |         |
-     v         v
-PostgreSQL   Autenticação local
-     |
-     +---- volume persistente
-
-Internet (quando disponível) ---> sincronização HTTPS com MaterialCRM Admin
+Spring Boot API :8081
+          |
+          v
+PostgreSQL local (rede interna Docker)
+          |
+          v
+Volume persistente materialcrm_database
 ```
+
+## Estado importante da migração
+
+**O banco operacional já está sendo direcionado para o PostgreSQL local. A autenticação ainda é temporariamente Supabase Auth.** Portanto, esta entrega isolada ainda não permite operar totalmente sem internet: o login será migrado para autenticação local na próxima tarefa. Não trate a instalação como pronta para produção offline.
+
+O banco PostgreSQL não publica a porta 5432 no host por padrão. Somente os serviços Docker acessam o banco pela rede interna.
 
 ## Pré-requisitos
 
 - Docker Engine e Docker Compose.
 - Para desenvolvimento sem Docker: Node.js 22/npm e JDK 21/Maven 3.9+.
-- Acesso à internet é necessário para baixar imagens/dependências na instalação inicial e para sincronizar com o Admin, mas não para operação normal depois de instalado.
+- Na instalação inicial, internet para baixar imagens e dependências. Após completar a migração de autenticação, a operação normal não dependerá da internet.
 
-## Endereços de acesso
+## Configuração
 
-- No próprio servidor: `http://localhost:8080`.
-- Em outro computador da loja: `http://IP-DO-SERVIDOR:8080`, por exemplo `http://192.168.0.100:8080`.
-- Reserve um IP no roteador ou configure endereço estático para o servidor. Libere no firewall somente as portas necessárias à LAN.
-- Não exponha diretamente as portas do banco de dados à rede de usuários ou à internet.
+1. Copie .env.example para .env na raiz do repositório.
+2. Defina uma senha forte em POSTGRES_PASSWORD.
+3. Durante esta fase de transição, configure também a publishable key Supabase e mantenha os parâmetros JWT de autenticação temporária.
+4. Nunca envie .env ao Git ou compartilhe senhas em mensagens.
 
-## Banco e persistência
+PowerShell:
 
-O PostgreSQL será executado como serviço do Docker Compose, com volume nomeado. Reiniciar ou recriar o contêiner não pode apagar os dados. A rotina de backup deverá gerar cópia externa e documentar restauração. Não considere o volume Docker como backup.
+```powershell
+Copy-Item .env.example .env
+```
 
-## Primeiro administrador local
+## Executar os contêineres
 
-O primeiro administrador será criado por um fluxo de bootstrap seguro. Não serão usados usuário/senha padrão embutidos no código ou no repositório. O fluxo deverá exigir segredo temporário fornecido no primeiro início e invalidá-lo após o cadastro.
+Na raiz do repositório:
 
-## Autenticação
+```bash
+docker compose config
+docker compose up --build -d
+docker compose ps
+```
 
-As credenciais e sessões dos funcionários serão gerenciadas localmente pela API. Senhas serão armazenadas apenas como hashes seguros. O login não poderá depender de Supabase Auth, JWKS ou qualquer serviço remoto.
+A interface será publicada em http://localhost:8080 no servidor e a API em http://localhost:8081.
 
-## MaterialCRM Admin e sincronização
+Em outro computador da loja, use o IP LAN do servidor, por exemplo http://192.168.0.100:8080. Configure reserva DHCP ou IP estático no servidor e libere a porta 8080 no firewall apenas para a rede local.
 
-A instalação local terá uma identidade própria e uma fila local de sincronização. Quando houver internet, enviará dados administrativos e de licença ao Admin via HTTPS. Falhas de conexão serão repetidas posteriormente; elas nunca devem impedir vendas ou outras operações locais.
+## Persistência do PostgreSQL
 
-A licença é verificada no backend local por assinatura digital. A chave privada fica no Admin; a instalação recebe apenas a chave pública. Vencimento durante uma desconexão não bloqueia o CRM. A instalação atualiza seu estado quando a conexão retornar.
+O serviço database utiliza o volume nomeado materialcrm_database. Reiniciar ou recriar o contêiner não deve remover os dados.
 
-## Executar
+- docker compose down preserva o volume.
+- **Não execute docker compose down -v em ambiente com dados que deseja manter:** a opção -v remove volumes.
+- Volume não substitui backup. A rotina de backup e restauração será entregue e testada em etapa própria.
 
-Os comandos definitivos de `docker compose config`, `docker compose up --build -d`, inspeção de saúde, backup e restauração serão publicados após a implementação do compose local-first. Não use o compose legado com variáveis Supabase como procedimento de produção.
+## Verificações
 
-## Estado de validação
+```bash
+docker compose ps
+docker compose logs database
+docker compose logs backend
+```
 
-A arquitetura foi documentada, mas o ambiente ainda não foi validado em uma máquina local. Builds, autenticação local, persistência PostgreSQL, acesso LAN, modo sem internet e restauração de backup continuam como critérios pendentes.
+O PostgreSQL deve ficar healthy antes da API iniciar. A API possui healthcheck do Actuator; a imagem instala wget para que o healthcheck funcione no contêiner.
+
+## Próximas entregas
+
+1. Remover a dependência de Supabase Auth/JWKS e implementar login local seguro.
+2. Criar migrations para o banco local e provisionamento seguro do primeiro administrador.
+3. Validar login e operações com a internet desconectada.
+4. Implementar backup/restauração e testes de acesso LAN.
+5. Construir sincronização e licenciamento com MaterialCRM Admin.
