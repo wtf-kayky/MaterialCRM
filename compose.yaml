@@ -26,6 +26,9 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?Defina VITE_SUPABASE_URL no .env}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?Defina VITE_SUPABASE_PUBLISHABLE_KEY no .env}
     depends_on:
       backend:
         condition: service_healthy
