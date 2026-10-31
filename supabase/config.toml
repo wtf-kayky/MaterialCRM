@@ -1,0 +1,7 @@
+# Configuração do Supabase CLI para este repositório.
+# A aplicação de produção/desenvolvimento compartilhado usa o projeto Cloud vinculado.
+project_id = "materialcrm"
+
+[db]
+# O projeto Supabase Cloud do MaterialCRM utiliza PostgreSQL 17.
+major_version = 17
