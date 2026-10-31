@@ -23,3 +23,9 @@ Thumbs.db
 postgres-data/
 *.log
 
+
+# Supabase CLI local state and local secrets
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+supabase/.env.local
