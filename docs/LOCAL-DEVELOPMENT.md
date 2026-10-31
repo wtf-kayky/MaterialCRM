@@ -8,10 +8,10 @@ O frontend e a API rodam localmente. O PostgreSQL e a autenticação ficam no pr
 Navegadores na LAN
        |
        v
-Frontend React (máquina local)
+Frontend React (localhost:8080 no Docker; 5173 no Vite)
        |
        v
-API Spring Boot (máquina local)
+API Spring Boot (localhost:8081)
        |
        +------ Supabase PostgreSQL (TLS)
        |
@@ -23,16 +23,28 @@ API Spring Boot (máquina local)
 ## Pré-requisitos
 
 - Docker Engine e Docker Compose.
+- Node.js 22 e npm 10 para execução de desenvolvimento sem Docker.
+- JDK 21 e Maven 3.9+ para executar a API fora do Docker.
 - Acesso ao projeto Supabase Cloud do MaterialCRM.
-- Supabase CLI instalado.
 - Credenciais do banco disponíveis em Project Settings → Database.
 
 ## Configurar variáveis
 
-1. Copie `.env.example` para `.env`.
+1. Copie `.env.example` para `.env` na raiz do repositório.
 2. Preencha host, porta, database, usuário e senha apresentados pelo Supabase.
-3. Para um backend Spring Boot de longa duração em redes IPv4, prefira o Supavisor **Session mode**. A conexão direta pode exigir IPv6; não use Transaction mode com prepared statements JDBC sem configurar e validar essa compatibilidade.
-4. Nunca coloque senha do banco, `service_role` ou outro segredo em variáveis `VITE_*`, no frontend ou no Git.
+3. Copie a **publishable key** em Project Settings → API Keys para `VITE_SUPABASE_PUBLISHABLE_KEY`. A URL já aponta para o projeto MaterialCRM.
+4. Confira as configurações de assinatura JWT em Authentication → Signing Keys; a API valida chaves assimétricas ES256 ou RS256 publicadas no JWKS.
+5. Para um backend Spring Boot de longa duração em redes IPv4, prefira o Supavisor **Session mode**. A conexão direta pode exigir IPv6; não use Transaction mode com prepared statements JDBC sem configurar e validar essa compatibilidade.
+6. Nunca coloque senha do banco, JWT secret, chave privada, `service_role` ou secret API key em variáveis `VITE_*`, no frontend ou no Git. A publishable key é a única chave Supabase que deve chegar ao navegador.
+
+## Criar uma conta de funcionário para o primeiro acesso
+
+O cadastro público não está habilitado. Para criar a conta de teste:
+
+1. Abra Authentication → Users no Dashboard do Supabase.
+2. Use **Add user** para criar um usuário com e-mail e senha de teste.
+3. Confirme o usuário, se o painel solicitar.
+4. Essa conta permite testar a identidade Supabase. O vínculo com empresa/filial em `public.app_user` será criado e validado na próxima tarefa de autorização empresarial; até lá, não há acesso às áreas comerciais.
 
 ## Validar migrations
 
@@ -46,20 +58,9 @@ supabase start
 supabase db reset
 ```
 
-Se o reset local concluir sem erros, autentique e vincule o repositório ao projeto Cloud. Revise a migration e o destino antes de enviar qualquer alteração ao banco remoto:
+O projeto Cloud já recebeu as migrations iniciais. Para mudanças futuras, use `supabase migration new nome_descritivo`, revise o SQL localmente e só aplique no Cloud depois da revisão.
 
-```bash
-supabase login
-supabase link --project-ref hmkkzlstjpnsfrwqcjax
-supabase migration list
-supabase db push
-```
-
-Para criar migrations futuras, use `supabase migration new nome_descritivo` e escreva o SQL no arquivo gerado. Não crie uma segunda trilha Flyway.
-
-A migration inicial cria o perfil `public.app_user` ligado por FK a `auth.users(id)`; ela não cria contas de funcionários automaticamente. As tabelas públicas começam com RLS habilitado e sem acesso direto concedido a `anon` ou `authenticated`.
-
-## Executar a aplicação
+## Executar com Docker
 
 Com o arquivo `.env` preenchido:
 
@@ -71,30 +72,43 @@ docker compose ps
 
 A interface fica disponível em `http://localhost:8080` por padrão e a API em `http://localhost:8081`. Para outros computadores da rede, use o endereço LAN do servidor e libere somente as portas necessárias no firewall.
 
+## Executar sem Docker (desenvolvimento)
+
+Terminal 1 — API, na pasta `backend`:
+
+```bash
+./mvnw spring-boot:run
+```
+
+No Windows, use `mvnw.cmd spring-boot:run` se o Maven Wrapper estiver disponível; caso contrário, use `mvn spring-boot:run`.
+
+Terminal 2 — frontend, na pasta `frontend`:
+
+```bash
+npm install
+npm run dev
+```
+
+O Vite lê as variáveis da raiz do repositório e encaminha `/api` para `http://localhost:8081`. Acesse `http://localhost:5173`.
+
 ## Identidade e autorização
 
 - Supabase Auth mantém credenciais e emite access tokens JWT.
 - `public.app_user` guarda o perfil do funcionário e o vínculo com a empresa; não guarda senha nem hash de senha.
-- A API deverá validar assinatura, emissor, audiência e expiração do JWT antes de aceitar a identidade.
+- A API valida assinatura, emissor, audiência e expiração do JWT antes de aceitar a identidade.
+- `GET /api/v1/me` é o teste inicial de identidade e exige token válido.
 - A API deverá verificar no servidor o vínculo do usuário com a empresa e a filial em cada operação.
 - O frontend não acessa diretamente tabelas operacionais.
 - Não presuma que RLS protege automaticamente consultas JDBC executadas com uma credencial privilegiada. A estratégia de papel de banco de menor privilégio e/ou contexto de tenant será validada antes de expor operações de negócio.
 
-## Critérios de aceite da fundação — Etapa 1
+## Critérios de aceite — primeiro acesso
 
-- [ ] Supabase CLI reconhece a configuração do projeto.
-- [ ] Migration inicial aplicada e validada em Supabase local.
-- [ ] Migration aplicada em ambiente Supabase Cloud de desenvolvimento após revisão explícita.
-- [ ] Flyway removido; Supabase CLI é a única trilha de migrations.
-- [ ] Arquitetura, modelo de identidade e execução local documentados.
-
-## Critérios de integração — Etapa 2
-
-- [ ] API inicia localmente e conecta ao banco usando TLS.
-- [ ] Frontend e API continuam executando localmente.
-- [ ] JWT Supabase validado pela API.
-- [ ] Autorização multiempresa/multifilial validada por testes positivos e negativos.
-- [ ] Estratégia de papel de banco de menor privilégio validada antes de operações comerciais.
+- [ ] Configurar variáveis locais e conectar o backend ao PostgreSQL Cloud por TLS.
+- [ ] Criar conta de teste em Supabase Auth.
+- [ ] Login real pelo frontend.
+- [ ] API validar o JWT e responder 200 em `/api/v1/me`.
+- [ ] Sessão persistir após recarregar a página e ser encerrada pelo botão Sair.
+- [ ] Build frontend, build Maven e Docker Compose validados.
 
 ## Limites operacionais
 
