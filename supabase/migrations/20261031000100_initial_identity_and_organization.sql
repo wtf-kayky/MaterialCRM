@@ -105,7 +105,8 @@ CREATE TABLE public.audit_event (
     details JSONB NOT NULL DEFAULT '{}'::jsonb,
     occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT fk_audit_branch_company FOREIGN KEY (branch_id, company_id)
-        REFERENCES public.branch(id, company_id) ON DELETE RESTRICT
+        REFERENCES public.branch(id, company_id) ON DELETE RESTRICT,
+    CONSTRAINT ck_audit_branch_requires_company CHECK (branch_id IS NULL OR company_id IS NOT NULL)
 );
 
 CREATE INDEX idx_branch_company ON public.branch(company_id);
@@ -122,3 +123,30 @@ INSERT INTO public.permission (code, module, description) VALUES
     ('USER_READ', 'ADMINISTRATION', 'Consultar usuários e perfis'),
     ('USER_MANAGE', 'ADMINISTRATION', 'Administrar usuários e perfis'),
     ('AUDIT_READ', 'ADMINISTRATION', 'Consultar eventos de auditoria');
+
+-- O navegador não consulta diretamente as tabelas operacionais.
+-- RLS fica habilitado e os papéis da Data API não recebem privilégios nessas tabelas.
+-- O backend acessa via JDBC e ainda precisa validar empresa/filial em cada operação.
+ALTER TABLE public.application_metadata ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.company ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.branch ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_user ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.role ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.permission ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_role ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.role_permission ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_branch_access ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_event ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE
+    public.application_metadata,
+    public.company,
+    public.branch,
+    public.app_user,
+    public.role,
+    public.permission,
+    public.user_role,
+    public.role_permission,
+    public.user_branch_access,
+    public.audit_event
+FROM anon, authenticated;
