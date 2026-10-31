@@ -20,9 +20,21 @@ O MaterialCRM Local é local-first: vendas, estoque, clientes, financeiro e logi
 - **Implantação Local:** Docker Compose.
 - **Acesso:** navegador no próprio servidor por localhost ou nos demais computadores pelo IP LAN do servidor.
 
+## Estado da implementação
+
+- [x] Arquitetura Admin + Local offline-first documentada.
+- [x] Serviço PostgreSQL local e volume persistente adicionados ao Compose.
+- [x] Autenticação local inicial com BCrypt, JWT HS256 e bootstrap do primeiro administrador.
+- [ ] Build Maven e build frontend executados com sucesso.
+- [ ] Testes de login, sessão e acesso sem internet.
+- [ ] Backup/restauração e acesso LAN validados.
+- [ ] Sincronização e licenciamento com MaterialCRM Admin.
+
+**Atenção:** os itens de implementação marcados como concluídos representam código gravado no repositório, não testes de execução. Não utilizar em produção antes de concluir os itens de validação.
+
 ## Licenciamento e operação offline
 
-Cada instalação mantém uma licença digital assinada e validável localmente. A chave privada permanece no Admin; a instalação recebe apenas a chave pública. Se a assinatura vencer enquanto a loja estiver offline, as operações locais continuam. A instalação sincroniza e revalida o estado assim que a conexão retornar.
+Cada instalação manterá uma licença digital assinada e validável localmente. A chave privada permanece no Admin; a instalação recebe apenas a chave pública. Se a assinatura vencer enquanto a loja estiver offline, as operações locais continuam. A instalação sincroniza e revalida o estado assim que a conexão retornar.
 
 Uma suspensão remota só pode ser aplicada quando a instalação receber a atualização. O Admin deve mostrar a data da última comunicação.
 
@@ -32,12 +44,10 @@ Uma suspensão remota só pode ser aplicada quando a instalação receber a atua
 - [Requisitos](docs/REQUIREMENTS.md)
 - [Modelo de dados](docs/DATA-MODEL.md)
 - [Segurança](docs/SECURITY-BASELINE.md)
+- [Autenticação local](docs/LOCAL-AUTHENTICATION.md)
+- [Desenvolvimento local](docs/LOCAL-DEVELOPMENT.md)
 - [Etapa 02](docs/STAGE-02-TECHNICAL-FOUNDATION.md)
-- [Decisão arquitetural 001 — Supabase](docs/decisions/ADR-001-supabase-cloud-auth.md)
+- [Decisão arquitetural 001 — Supabase (substituída)](docs/decisions/ADR-001-supabase-cloud-auth.md)
 - [Decisão arquitetural 002 — Admin e Local offline-first](docs/decisions/ADR-002-admin-and-local-offline-first.md)
 
-## Estado do projeto
-
-A arquitetura anterior baseada em Supabase Cloud como banco operacional e autenticação obrigatória foi substituída nesta linha de desenvolvimento pela arquitetura local-first. O schema Supabase já criado será preservado; não é dependência de runtime do MaterialCRM Local.
-
-A fundação ainda precisa ser implementada e validada. Não considerar o ambiente local pronto para produção até concluir builds, testes de autenticação, persistência, backup/restauração e acesso por LAN.
+O schema Supabase já criado será preservado, mas não é dependência de runtime do MaterialCRM Local.
