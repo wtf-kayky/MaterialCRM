@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,11 +23,11 @@ public class AuditEventController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('AUDIT_READ')")
-    public List<AuditEventResponse> list(@RequestParam(defaultValue = "50") int limit) {
+    public List<AuditEventResponse> list(@RequestParam(defaultValue = "50") int limit, Authentication authentication) {
         int boundedLimit = Math.max(1, Math.min(limit, 100));
         return jdbcTemplate.query(
                 "select id, event_type, resource_type, resource_id, actor_user_id, occurred_at "
-                        + "from audit_event order by occurred_at desc limit ?",
+                        + "from audit_event where company_id = (select company_id from app_user where lower(email) = lower(?)) order by occurred_at desc limit ?",
                 (rs, rowNum) -> new AuditEventResponse(
                         UUID.fromString(rs.getString("id")),
                         rs.getString("event_type"),
@@ -34,6 +35,7 @@ public class AuditEventController {
                         rs.getString("resource_id") == null ? null : UUID.fromString(rs.getString("resource_id")),
                         rs.getString("actor_user_id") == null ? null : UUID.fromString(rs.getString("actor_user_id")),
                         rs.getObject("occurred_at", OffsetDateTime.class)),
+                authentication.getName(),
                 boundedLimit);
     }
 
