@@ -6,6 +6,7 @@ type Identity = { userId: string; email: string; role: string }
 type LoginResponse = { accessToken: string; user: Identity }
 type Branch = { id: string; name: string; code: string; active: boolean; selected: boolean }
 type OrganizationContext = { company: { id: string; legalName: string; tradeName: string; taxId: string; active: boolean }; branches: Branch[]; role: string }
+type Customer = { id: string; branchId: string; customerType: 'PF' | 'PJ'; name: string; document: string | null; email: string | null; phone: string | null; active: boolean }
 const TOKEN_KEY = 'materialcrm_access_token'
 const navigation = [
   { label: 'Visão geral', icon: House },
@@ -38,6 +39,7 @@ function App() {
   const [branchOpen, setBranchOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [activeView, setActiveView] = useState('overview')
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY)
     if (!saved) { setChecking(false); return }
@@ -78,7 +80,7 @@ function App() {
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">M</span><span>MaterialCRM</span></div>
       <nav className="sidebar-nav" aria-label="Navegação principal">
-        {navigation.map(({ label, icon: Icon }, index) => <button className={`nav-item ${index === 0 ? 'nav-item--active' : ''}`} key={label} type="button" disabled={index !== 0}><Icon size={19} /><span>{label}</span></button>)}
+        {navigation.map(({ label, icon: Icon }, index) => { const view = index === 0 ? 'overview' : index === 2 ? 'customers' : label.toLowerCase(); return <button className={`nav-item ${activeView === view ? 'nav-item--active' : ''}`} key={label} type="button" disabled={index !== 0 && index !== 2} onClick={() => setActiveView(view)}><Icon size={19} /><span>{label}</span></button> })}
       </nav>
       <div className="sidebar-bottom"><button className="nav-item" type="button" disabled><GearSix size={19} /><span>Configurações</span></button><div className="sidebar-note"><span className="pulse-dot" /> API local autenticada</div></div>
     </aside>
@@ -98,7 +100,7 @@ function App() {
           </div>
         </div>
       </header>
-      <section className="content">
+      {activeView === 'customers' ? <Customers token={token} organization={organization} /> : <section className="content">
         <div className="page-heading entry-reveal"><div><p className="eyebrow">SESSÃO LOCAL VALIDADA</p><h1>Acesso confirmado.</h1><p>Sua identidade foi autenticada pelo MaterialCRM Local.</p></div><span className="outline-button"><ChartLineUp size={18} /> Fundação técnica</span></div>
         <section className="metric-grid entry-reveal" aria-label="Estado da integração">
           <Metric label="Identidade autenticada" value="Confirmada" detail={email} tone="positive" />
@@ -114,9 +116,42 @@ function App() {
           </div></div>
           <div className="attention-panel panel"><div className="panel-header"><div><p className="eyebrow">ACESSO</p><h2>Ambiente protegido</h2></div></div><div className="access-note"><span className="pulse-dot" /><p>As áreas comerciais permanecem bloqueadas até a conclusão das permissões por empresa e filial.</p></div><button className="text-button signout-inline" type="button" onClick={logout}>Encerrar sessão <SignOut size={16} /></button></div>
         </section>
-      </section>
+      </section>}
     </main>
   </div>
+}
+function Customers({ token, organization }: { token: string; organization: OrganizationContext | null }) {
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [search, setSearch] = useState('')
+  const [openForm, setOpenForm] = useState(false)
+  const [editing, setEditing] = useState<Customer | null>(null)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({ customerType: 'PJ', name: '', document: '', email: '', phone: '', branchId: '' })
+
+  async function loadCustomers(term = search) {
+    const response = await fetch(`/api/v1/customers${term ? `?search=${encodeURIComponent(term)}` : ''}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!response.ok) throw new Error('Não foi possível carregar os clientes.')
+    setCustomers(await response.json() as Customer[])
+  }
+  useEffect(() => { void loadCustomers().catch((cause) => setError(cause instanceof Error ? cause.message : 'Falha ao carregar clientes.')) }, [])
+  function startCreate() { setEditing(null); setForm({ customerType: 'PJ', name: '', document: '', email: '', phone: '', branchId: organization?.branches.find((branch) => branch.selected)?.id ?? '' }); setOpenForm(true); setError(''); setMessage('') }
+  function startEdit(customer: Customer) { setEditing(customer); setForm({ customerType: customer.customerType, name: customer.name, document: customer.document ?? '', email: customer.email ?? '', phone: customer.phone ?? '', branchId: customer.branchId }); setOpenForm(true); setError(''); setMessage('') }
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(''); setMessage('')
+    const response = await fetch(editing ? `/api/v1/customers/${editing.id}` : '/api/v1/customers', { method: editing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) })
+    if (!response.ok) { setError('Não foi possível salvar o cliente.'); return }
+    setOpenForm(false); setMessage(editing ? 'Cliente atualizado.' : 'Cliente cadastrado.'); await loadCustomers()
+  }
+  async function deactivate(id: string) { if (!window.confirm('Desativar este cliente?')) return; const response = await fetch(`/api/v1/customers/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }); if (response.ok) { setMessage('Cliente desativado.'); await loadCustomers() } else setError('Não foi possível desativar o cliente.') }
+  return <section className="content">
+    <div className="page-heading entry-reveal"><div><p className="eyebrow">CADASTRO COMERCIAL</p><h1>Clientes.</h1><p>Cadastre e consulte os clientes da empresa e da filial ativa.</p></div><button className="primary-button customer-new-button" type="button" onClick={startCreate}>Novo cliente</button></div>
+    {message && <p className="success-message">{message}</p>}{error && <p className="form-error">{error}</p>}
+    <section className="panel customer-panel"><div className="customer-toolbar"><label className="search customer-search"><MagnifyingGlass size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void loadCustomers() }} placeholder="Buscar por nome ou documento" /></label><span className="customer-count">{customers.length} cliente(s)</span></div>
+      <div className="customer-table-wrap"><table className="customer-table"><thead><tr><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Contato</th><th>Status</th><th></th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><strong>{customer.name}</strong><small>{customer.email ?? 'Sem e-mail'}</small></td><td>{customer.customerType}</td><td>{customer.document ?? '—'}</td><td>{customer.phone ?? '—'}</td><td><span className={customer.active ? 'status-active' : 'status-inactive'}>{customer.active ? 'Ativo' : 'Inativo'}</span></td><td className="customer-actions"><button type="button" onClick={() => startEdit(customer)}>Editar</button>{customer.active && <button type="button" onClick={() => void deactivate(customer.id)}>Desativar</button>}</td></tr>)}{customers.length === 0 && <tr><td colSpan={6} className="empty-state">Nenhum cliente encontrado.</td></tr>}</tbody></table></div>
+    </section>
+    {openForm && <div className="modal-backdrop"><form className="customer-form panel" onSubmit={submit}><div className="panel-header"><div><p className="eyebrow">{editing ? 'EDIÇÃO' : 'NOVO CADASTRO'}</p><h2>{editing ? 'Editar cliente' : 'Cadastrar cliente'}</h2></div><button className="icon-button" type="button" onClick={() => setOpenForm(false)} aria-label="Fechar"><X size={19} /></button></div><div className="customer-form-fields"><label>Tipo<select value={form.customerType} onChange={(event) => setForm({ ...form, customerType: event.target.value })}><option value="PJ">Pessoa jurídica</option><option value="PF">Pessoa física</option></select></label><label>Nome<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label><label>Documento<input value={form.document} onChange={(event) => setForm({ ...form, document: event.target.value })} /></label><label>E-mail<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label><label>Telefone<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label><label>Filial<select value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>{organization?.branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label></div><button className="primary-button" type="submit">Salvar cliente</button></form></div>}
+  </section>
 }
 function Metric({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: string }) {
   return <article className="metric"><p>{label}</p><strong>{value}</strong><span className={`metric-detail metric-detail--${tone}`}>{detail}</span></article>
