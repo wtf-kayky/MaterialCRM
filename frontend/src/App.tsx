@@ -9,6 +9,7 @@ type OrganizationContext = { company: { id: string; legalName: string; tradeName
 type Customer = { id: string; branchId: string; customerType: 'PF' | 'PJ'; name: string; document: string | null; email: string | null; phone: string | null; active: boolean }
 type Product = { id: string; sku: string; name: string; category: string | null; unit: string; costPrice: number; salePrice: number; active: boolean }
 type Stock = { id: string; productId: string; sku: string; name: string; quantity: number; minimumQuantity: number }
+type DashboardSummary = { salesTotal: number; salesCount: number; customerCount: number; productCount: number; lowStockCount: number }
 const TOKEN_KEY = 'materialcrm_access_token'
 const navigation = [
   { label: 'Visão geral', icon: House },
@@ -31,6 +32,11 @@ async function loadOrganization(token: string): Promise<OrganizationContext> {
   if (!response.ok) throw new Error('Não foi possível carregar a empresa e as filiais.')
   return response.json() as Promise<OrganizationContext>
 }
+async function loadDashboard(token: string): Promise<DashboardSummary> {
+  const response = await fetch('/api/v1/dashboard/summary', { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) throw new Error('Não foi possível carregar os indicadores.')
+  return response.json() as Promise<DashboardSummary>
+}
 function App() {
   const [token, setToken] = useState<string | null>(null)
   const [identity, setIdentity] = useState<Identity | null>(null)
@@ -42,6 +48,7 @@ function App() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [activeView, setActiveView] = useState('overview')
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null)
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY)
     if (!saved) { setChecking(false); return }
@@ -52,6 +59,7 @@ function App() {
       .finally(() => { if (active) setChecking(false) })
     return () => { active = false }
   }, [])
+  useEffect(() => { if (token) void loadDashboard(token).then(setDashboard).catch(() => undefined) }, [token])
   async function login(email: string, password: string) {
     setLoading(true); setError('')
     try {
@@ -105,9 +113,9 @@ function App() {
       {activeView === 'customers' ? <Customers token={token} organization={organization} /> : activeView === 'products' ? <Products token={token} /> : activeView === 'inventory' ? <Inventory token={token} /> : activeView === 'sales' ? <Sales token={token} /> : <section className="content">
         <div className="page-heading entry-reveal"><div><p className="eyebrow">SESSÃO LOCAL VALIDADA</p><h1>Acesso confirmado.</h1><p>Sua identidade foi autenticada pelo MaterialCRM Local.</p></div><span className="outline-button"><ChartLineUp size={18} /> Fundação técnica</span></div>
         <section className="metric-grid entry-reveal" aria-label="Estado da integração">
-          <Metric label="Identidade autenticada" value="Confirmada" detail={email} tone="positive" />
-          <Metric label="API local" value="Conectada" detail={`Usuário ${identity.userId.slice(0, 8)}…`} tone="positive" />
-          <Metric label="Perfil de acesso" value={identity.role} detail={organization?.company.tradeName ?? 'Empresa local'} tone="warning" />
+          <Metric label="Vendas hoje" value={dashboard ? `R$ ${dashboard.salesTotal.toFixed(2).replace('.', ',')}` : '—'} detail={`${dashboard?.salesCount ?? 0} venda(s) registrada(s)`} tone="positive" />
+          <Metric label="Clientes ativos" value={dashboard ? String(dashboard.customerCount) : '—'} detail={`Produtos ativos: ${dashboard?.productCount ?? 0}`} tone="positive" />
+          <Metric label="Estoque" value={dashboard ? String(dashboard.lowStockCount) : '—'} detail={dashboard?.lowStockCount ? 'Produto(s) precisam de reposição' : 'Nenhum alerta de reposição'} tone={dashboard?.lowStockCount ? 'warning' : 'positive'} />
         </section>
         <section className="dashboard-grid entry-reveal">
           <div className="sales-panel panel"><div className="panel-header"><div><p className="eyebrow">PRÓXIMA ENTREGA</p><h2>Preparação da operação</h2></div></div><div className="setup-steps">
