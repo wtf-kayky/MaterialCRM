@@ -4,6 +4,8 @@ import { Bell, Buildings, CaretDown, ChartLineUp, ClipboardText, Cube, GearSix, 
 
 type Identity = { userId: string; email: string; role: string }
 type LoginResponse = { accessToken: string; user: Identity }
+type Branch = { id: string; name: string; code: string; active: boolean; selected: boolean }
+type OrganizationContext = { company: { id: string; legalName: string; tradeName: string; taxId: string; active: boolean }; branches: Branch[]; role: string }
 const TOKEN_KEY = 'materialcrm_access_token'
 const navigation = [
   { label: 'Visão geral', icon: House },
@@ -21,9 +23,15 @@ async function validateSession(token: string): Promise<Identity> {
   if (!response.ok) throw new Error('Sessão inválida ou expirada.')
   return response.json() as Promise<Identity>
 }
+async function loadOrganization(token: string): Promise<OrganizationContext> {
+  const response = await fetch('/api/v1/organization/context', { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) throw new Error('Não foi possível carregar a empresa e as filiais.')
+  return response.json() as Promise<OrganizationContext>
+}
 function App() {
   const [token, setToken] = useState<string | null>(null)
   const [identity, setIdentity] = useState<Identity | null>(null)
+  const [organization, setOrganization] = useState<OrganizationContext | null>(null)
   const [checking, setChecking] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -35,7 +43,7 @@ function App() {
     if (!saved) { setChecking(false); return }
     let active = true
     void validateSession(saved).then((user) => {
-      if (active) { setToken(saved); setIdentity(user) }
+      if (active) { setToken(saved); setIdentity(user); void loadOrganization(saved).then(setOrganization).catch(() => undefined) }
     }).catch(() => sessionStorage.removeItem(TOKEN_KEY))
       .finally(() => { if (active) setChecking(false) })
     return () => { active = false }
@@ -53,17 +61,19 @@ function App() {
       const result = await response.json() as LoginResponse
       sessionStorage.setItem(TOKEN_KEY, result.accessToken)
       setToken(result.accessToken); setIdentity(result.user)
+      void loadOrganization(result.accessToken).then(setOrganization).catch(() => undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Falha ao entrar no sistema.')
     } finally { setLoading(false) }
   }
   function logout() {
-    sessionStorage.removeItem(TOKEN_KEY); setToken(null); setIdentity(null); setError('')
+    sessionStorage.removeItem(TOKEN_KEY); setToken(null); setIdentity(null); setOrganization(null); setError('')
   }
   if (checking) return <main className="auth-loading"><span className="pulse-dot" /> Verificando sessão local...</main>
   if (!token || !identity) return <Login error={error} loading={loading} onSubmit={login} />
   const email = identity.email
   const initials = email.slice(0, 2).toUpperCase()
+  const selectedBranch = organization?.branches.find((branch) => branch.selected) ?? organization?.branches[0]
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">M</span><span>MaterialCRM</span></div>
@@ -76,8 +86,8 @@ function App() {
       <header className="topbar">
         <button className="mobile-menu" type="button" aria-label="Abrir menu"><List size={23} /></button>
         <div className="branch-wrap">
-          <button className="branch-select" type="button" onClick={() => setBranchOpen(!branchOpen)} aria-expanded={branchOpen}><span className="branch-icon"><Storefront size={17} /></span><span><small>FILIAL ATIVA</small><strong>Filial ainda não vinculada</strong></span><CaretDown size={16} /></button>
-          {branchOpen && <div className="floating-menu branch-menu"><button type="button" disabled><Buildings size={17} /> Nenhuma filial atribuída</button></div>}
+          <button className="branch-select" type="button" onClick={() => setBranchOpen(!branchOpen)} aria-expanded={branchOpen}><span className="branch-icon"><Storefront size={17} /></span><span><small>FILIAL ATIVA</small><strong>{selectedBranch?.name ?? 'Nenhuma filial atribuída'}</strong></span><CaretDown size={16} /></button>
+          {branchOpen && <div className="floating-menu branch-menu">{organization?.branches.length ? organization.branches.map((branch) => <button key={branch.id} type="button" onClick={async () => { const response = await fetch(`/api/v1/organization/branches/${branch.id}/active`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }); if (response.ok && token) { setOrganization(await loadOrganization(token)); setBranchOpen(false) } }}><Buildings size={17} /> {branch.name}</button>) : <button type="button" disabled><Buildings size={17} /> Nenhuma filial atribuída</button>}</div>}
         </div>
         <div className="topbar-actions">
           <label className="search"><MagnifyingGlass size={18} /><input placeholder="Buscar no sistema" aria-label="Buscar no sistema" disabled /></label>
@@ -93,7 +103,7 @@ function App() {
         <section className="metric-grid entry-reveal" aria-label="Estado da integração">
           <Metric label="Identidade autenticada" value="Confirmada" detail={email} tone="positive" />
           <Metric label="API local" value="Conectada" detail={`Usuário ${identity.userId.slice(0, 8)}…`} tone="positive" />
-          <Metric label="Perfil de acesso" value={identity.role} detail="Permissões por filial serão configuradas depois" tone="warning" />
+          <Metric label="Perfil de acesso" value={identity.role} detail={organization?.company.tradeName ?? 'Empresa local'} tone="warning" />
         </section>
         <section className="dashboard-grid entry-reveal">
           <div className="sales-panel panel"><div className="panel-header"><div><p className="eyebrow">PRÓXIMA ENTREGA</p><h2>Preparação da operação</h2></div></div><div className="setup-steps">
