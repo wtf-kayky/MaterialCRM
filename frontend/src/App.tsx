@@ -139,8 +139,8 @@ function Customers({ token, organization }: { token: string; organization: Organ
   function startEdit(customer: Customer) { setEditing(customer); setForm({ customerType: customer.customerType, name: customer.name, document: customer.document ?? '', email: customer.email ?? '', phone: customer.phone ?? '', branchId: customer.branchId }); setOpenForm(true); setError(''); setMessage('') }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(''); setMessage('')
-    const response = await fetch(editing ? `/api/v1/customers/${editing.id}` : '/api/v1/customers', { method: editing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(form) })
-    if (!response.ok) { setError('Não foi possível salvar o cliente.'); return }
+    const response = await fetch(editing ? `/api/v1/customers/${editing.id}` : '/api/v1/customers', { method: editing ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...form, branchId: form.branchId || null }) })
+    if (!response.ok) { const detail = await response.text(); setError(detail || 'Não foi possível salvar o cliente.'); return }
     setOpenForm(false); setMessage(editing ? 'Cliente atualizado.' : 'Cliente cadastrado.'); await loadCustomers()
   }
   async function deactivate(id: string) { if (!window.confirm('Desativar este cliente?')) return; const response = await fetch(`/api/v1/customers/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }); if (response.ok) { setMessage('Cliente desativado.'); await loadCustomers() } else setError('Não foi possível desativar o cliente.') }
