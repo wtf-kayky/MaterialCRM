@@ -4,13 +4,15 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/audit-events")
@@ -22,20 +24,26 @@ public class AuditEventController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('AUDIT_READ')")
-    public List<AuditEventResponse> list(@RequestParam(defaultValue = "50") int limit, Authentication authentication) {
+    public List<AuditEventResponse> list(@RequestParam(defaultValue = "50") int limit,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        String role = jwt.getClaimAsString("role");
+        if (!"ADMIN".equals(role) && !"MANAGER".equals(role)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Perfil sem permissão para auditoria.");
+        }
         int boundedLimit = Math.max(1, Math.min(limit, 100));
         return jdbcTemplate.query(
-                "select id, event_type, resource_type, resource_id, actor_user_id, occurred_at "
-                        + "from audit_event where company_id = (select company_id from app_user where lower(email) = lower(?)) order by occurred_at desc limit ?",
+                "SELECT id, event_type, resource_type, resource_id, actor_user_id, occurred_at "
+                        + "FROM audit_event WHERE company_id = (SELECT company_id FROM app_user WHERE id = ? AND active = true) "
+                        + "ORDER BY occurred_at DESC LIMIT ?",
                 (rs, rowNum) -> new AuditEventResponse(
-                        UUID.fromString(rs.getString("id")),
+                        rs.getObject("id", UUID.class),
                         rs.getString("event_type"),
                         rs.getString("resource_type"),
-                        rs.getString("resource_id") == null ? null : UUID.fromString(rs.getString("resource_id")),
-                        rs.getString("actor_user_id") == null ? null : UUID.fromString(rs.getString("actor_user_id")),
+                        rs.getObject("resource_id", UUID.class),
+                        rs.getObject("actor_user_id", UUID.class),
                         rs.getObject("occurred_at", OffsetDateTime.class)),
-                authentication.getName(),
+                userId,
                 boundedLimit);
     }
 
