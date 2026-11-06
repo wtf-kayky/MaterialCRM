@@ -45,6 +45,7 @@ public class UserAdminController {
     public UserView create(@RequestBody CreateUserRequest request, @AuthenticationPrincipal Jwt jwt) {
         UUID companyId = requireManager(jwt);
         validate(request.email(), request.password(), request.fullName(), request.role());
+        requireAdminForAdminRole(jwt, request.role());
         UUID branchId = validBranch(request.branchId(), companyId);
         UUID id = UUID.randomUUID();
         jdbcTemplate.update(
@@ -62,10 +63,17 @@ public class UserAdminController {
         if (request.role() != null && !ROLES.contains(request.role())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Perfil de acesso inválido.");
         }
-        int updated = jdbcTemplate.update(
+
+        String targetRole = jdbcTemplate.query(
+                "SELECT role FROM app_user WHERE id = ? AND company_id = ?",
+                (rs, rowNum) -> rs.getString("role"), userId, companyId).stream().findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado."));
+        requireAdminForAdminRole(jwt, targetRole);
+        requireAdminForAdminRole(jwt, request.role());
+
+        jdbcTemplate.update(
                 "UPDATE app_user SET full_name = COALESCE(?, full_name), role = COALESCE(?, role), active = COALESCE(?, active) WHERE id = ? AND company_id = ?",
                 blankToNull(request.fullName()), request.role(), request.active(), userId, companyId);
-        if (updated == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuário não encontrado.");
         return jdbcTemplate.queryForObject(
                 "SELECT id, email, full_name, active, role, active_branch_id FROM app_user WHERE id = ?",
                 (rs, rowNum) -> new UserView(rs.getObject("id", UUID.class), rs.getString("email"),
@@ -80,6 +88,12 @@ public class UserAdminController {
         }
         return jdbcTemplate.queryForObject("SELECT company_id FROM app_user WHERE id = ? AND active = true",
                 UUID.class, UUID.fromString(jwt.getSubject()));
+    }
+
+    private void requireAdminForAdminRole(Jwt jwt, String managedRole) {
+        if ("ADMIN".equals(managedRole) && !"ADMIN".equals(jwt.getClaimAsString("role"))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Somente administradores podem gerenciar administradores.");
+        }
     }
 
     private UUID validBranch(UUID branchId, UUID companyId) {
