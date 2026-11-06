@@ -12,6 +12,7 @@ Revisão estática da fundação técnica e do controle de acesso das Etapas 04 
 | Sessão sem estado | Aplicado | API usa JWT Bearer e política de sessão sem estado |
 | Senhas com hash forte | Aplicado | BCrypt com custo 12 no provisionamento e na administração de usuários |
 | Segredo de token | Aplicado com validação | Chave HMAC vem de variável de ambiente e exige ao menos 32 bytes |
+| Limite de tentativas de login | Aplicado para a instância local | Cinco falhas por e-mail e endereço remoto em 15 minutos retornam HTTP 429 |
 | Isolamento por empresa | Aplicado nos endpoints atuais | Sessão, empresa e auditoria filtram pelo usuário autenticado |
 | Acesso por filial de clientes | Aplicado | Consultas e alterações de clientes exigem vínculo explícito do usuário com a filial |
 | Acesso ao estoque | Aplicado | Filial ativa exige vínculo explícito e movimentações são restritas a perfis autorizados |
@@ -23,7 +24,8 @@ Revisão estática da fundação técnica e do controle de acesso das Etapas 04 
 
 ## Pendências antes de produção
 
-- Adicionar limitação de tentativas de login e eventos de falha.
+- Migrar o limite de tentativas para um mecanismo compartilhado caso haja mais de uma instância da API.
+- Registrar eventos de falha de login sem expor credenciais.
 - Implementar renovação e revogação controladas de tokens.
 - Incluir testes de autorização entre empresas, filiais e perfis.
 - Fixar versões de dependências e executar análise de vulnerabilidades em pipeline.
