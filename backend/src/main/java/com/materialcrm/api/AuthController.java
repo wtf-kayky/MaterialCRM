@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,29 +24,36 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.materialcrm.security.LoginAttemptLimiter;
+
 @RestController
 @RequestMapping("/api/v1")
 public class AuthController {
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder jwtEncoder;
+    private final LoginAttemptLimiter loginAttemptLimiter;
     private final long tokenTtlMinutes;
 
     public AuthController(JdbcTemplate jdbcTemplate, PasswordEncoder passwordEncoder, JwtEncoder jwtEncoder,
-            @Value("${APP_JWT_TTL_MINUTES:480}") long tokenTtlMinutes) {
+            LoginAttemptLimiter loginAttemptLimiter, @Value("${APP_JWT_TTL_MINUTES:480}") long tokenTtlMinutes) {
         this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
         this.jwtEncoder = jwtEncoder;
+        this.loginAttemptLimiter = loginAttemptLimiter;
         this.tokenTtlMinutes = tokenTtlMinutes;
     }
 
     @PostMapping("/auth/login")
-    public Map<String, Object> login(@RequestBody LoginRequest request) {
+    public Map<String, Object> login(@RequestBody LoginRequest request, HttpServletRequest servletRequest) {
         if (request.email() == null || request.password() == null
                 || request.email().isBlank() || request.password().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe e-mail e senha.");
         }
 
+        String email = request.email().trim();
+        String remoteAddress = servletRequest.getRemoteAddr();
+        loginAttemptLimiter.check(email, remoteAddress);
         List<UserRecord> users = jdbcTemplate.query(
                 "SELECT id, email, password_hash, active, role FROM app_user WHERE lower(email) = lower(?)",
                 (rs, rowNum) -> new UserRecord(
@@ -54,14 +62,16 @@ public class AuthController {
                         rs.getString("password_hash"),
                         rs.getBoolean("active"),
                         rs.getString("role")),
-                request.email().trim());
+                email);
 
         if (users.isEmpty() || !users.get(0).active()
                 || !passwordEncoder.matches(request.password(), users.get(0).passwordHash())) {
+            loginAttemptLimiter.registerFailure(email, remoteAddress);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "E-mail ou senha inválidos.");
         }
 
         UserRecord user = users.get(0);
+        loginAttemptLimiter.registerSuccess(email, remoteAddress);
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(tokenTtlMinutes * 60);
         JwtClaimsSet claims = JwtClaimsSet.builder()
