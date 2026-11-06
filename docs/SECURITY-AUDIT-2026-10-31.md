@@ -1,4 +1,4 @@
-# Auditoria inicial de segurança — 2026-10-31
+# Auditoria inicial de segurança — 2026-11-06
 
 ## Escopo
 
@@ -8,18 +8,20 @@ Revisão estática da fundação técnica e do controle de acesso da Etapa 04.
 
 | Controle | Estado | Evidência |
 | --- | --- | --- |
-| Rotas fechadas por padrão | Aplicado | Configuração de segurança exige autenticação, exceto health check |
-| Senhas com hash forte | Aplicado | BCrypt no provisionamento inicial |
+| Rotas fechadas por padrão | Aplicado | Configuração de segurança exige autenticação, exceto health check e login |
+| Sessão sem estado | Aplicado | API usa JWT Bearer e política de sessão sem estado |
+| Senhas com hash forte | Aplicado | BCrypt com custo 12 no provisionamento e na administração de usuários |
+| Segredo de token | Aplicado com validação | Chave HMAC vem de variável de ambiente e exige ao menos 32 bytes |
 | Isolamento por empresa | Aplicado nos endpoints atuais | Sessão, empresa e auditoria filtram pelo usuário autenticado |
 | Acesso por filial | Modelado | Tabela de acesso explícito por filial e sessão lista filiais autorizadas |
-| Auditoria de login | Aplicado | Evento de autenticação bem-sucedida cria registro de auditoria |
+| Separação administrativa | Aplicado | Gerentes não podem criar, promover, desativar ou alterar administradores |
 | Dados sensíveis em repositório | Não encontrados | Credenciais são lidas exclusivamente por variáveis de ambiente |
 
 ## Pendências antes de produção
 
-- Substituir autenticação HTTP Basic por login com token de curta duração e renovação controlada.
 - Adicionar limitação de tentativas de login e eventos de falha.
-- Incluir testes de autorização entre empresas, filiais e permissões.
+- Implementar renovação e revogação controladas de tokens.
+- Incluir testes de autorização entre empresas, filiais e perfis.
 - Fixar versões de dependências e executar análise de vulnerabilidades em pipeline.
 - Configurar TLS na implantação em rede local.
 
