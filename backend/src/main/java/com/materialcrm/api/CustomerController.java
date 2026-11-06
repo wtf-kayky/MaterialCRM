@@ -34,12 +34,13 @@ public class CustomerController {
         String term = search == null ? "" : search.trim();
         return jdbcTemplate.query(
                 "SELECT id, branch_id, customer_type, name, document, email, phone, active "
-                        + "FROM customer WHERE company_id = ? AND (lower(name) LIKE lower(?) OR coalesce(document, '') LIKE ?) "
-                        + "ORDER BY name LIMIT 100",
+                        + "FROM customer c WHERE company_id = ? "
+                        + "AND EXISTS (SELECT 1 FROM user_branch_access uba WHERE uba.user_id = ? AND uba.branch_id = c.branch_id) "
+                        + "AND (lower(name) LIKE lower(?) OR coalesce(document, '') LIKE ?) ORDER BY name LIMIT 100",
                 (rs, rowNum) -> new CustomerView(rs.getObject("id", UUID.class), rs.getObject("branch_id", UUID.class),
                         rs.getString("customer_type"), rs.getString("name"), rs.getString("document"),
                         rs.getString("email"), rs.getString("phone"), rs.getBoolean("active")),
-                scope.companyId(), "%" + term + "%", "%" + term + "%");
+                scope.companyId(), scope.userId(), "%" + term + "%", "%" + term + "%");
     }
 
     @PostMapping
@@ -52,7 +53,7 @@ public class CustomerController {
                 "INSERT INTO customer (id, company_id, branch_id, customer_type, name, document, email, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 id, scope.companyId(), branchId, request.customerType(), request.name().trim(), blankToNull(request.document()),
                 blankToNull(request.email()), blankToNull(request.phone()));
-        return find(id, scope.companyId());
+        return find(id, scope);
     }
 
     @PutMapping("/{customerId}")
@@ -62,27 +63,34 @@ public class CustomerController {
         validate(request);
         UUID branchId = validBranch(request.branchId(), scope);
         int updated = jdbcTemplate.update(
-                "UPDATE customer SET branch_id = ?, customer_type = ?, name = ?, document = ?, email = ?, phone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND company_id = ?",
-                branchId, request.customerType(), request.name().trim(), blankToNull(request.document()),
-                blankToNull(request.email()), blankToNull(request.phone()), customerId, scope.companyId());
+                "UPDATE customer c SET branch_id = ?, customer_type = ?, name = ?, document = ?, email = ?, phone = ?, updated_at = CURRENT_TIMESTAMP "
+                        + "WHERE id = ? AND company_id = ? "
+                        + "AND EXISTS (SELECT 1 FROM user_branch_access uba WHERE uba.user_id = ? AND uba.branch_id = c.branch_id)",
+                branchId, request.customerType(), request.name().trim(), blankToNull(request.document()), blankToNull(request.email()),
+                blankToNull(request.phone()), customerId, scope.companyId(), scope.userId());
         if (updated == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado.");
-        return find(customerId, scope.companyId());
+        return find(customerId, scope);
     }
 
     @DeleteMapping("/{customerId}")
     public void deactivate(@PathVariable UUID customerId, @AuthenticationPrincipal Jwt jwt) {
         Scope scope = requireSalesAccess(jwt);
-        int updated = jdbcTemplate.update("UPDATE customer SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND company_id = ?",
-                customerId, scope.companyId());
+        int updated = jdbcTemplate.update(
+                "UPDATE customer c SET active = false, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND company_id = ? "
+                        + "AND EXISTS (SELECT 1 FROM user_branch_access uba WHERE uba.user_id = ? AND uba.branch_id = c.branch_id)",
+                customerId, scope.companyId(), scope.userId());
         if (updated == 0) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente não encontrado.");
     }
 
-    private CustomerView find(UUID id, UUID companyId) {
+    private CustomerView find(UUID id, Scope scope) {
         return jdbcTemplate.queryForObject(
-                "SELECT id, branch_id, customer_type, name, document, email, phone, active FROM customer WHERE id = ? AND company_id = ?",
+                "SELECT id, branch_id, customer_type, name, document, email, phone, active FROM customer c "
+                        + "WHERE id = ? AND company_id = ? "
+                        + "AND EXISTS (SELECT 1 FROM user_branch_access uba WHERE uba.user_id = ? AND uba.branch_id = c.branch_id)",
                 (rs, rowNum) -> new CustomerView(rs.getObject("id", UUID.class), rs.getObject("branch_id", UUID.class),
                         rs.getString("customer_type"), rs.getString("name"), rs.getString("document"),
-                        rs.getString("email"), rs.getString("phone"), rs.getBoolean("active")), id, companyId);
+                        rs.getString("email"), rs.getString("phone"), rs.getBoolean("active")),
+                id, scope.companyId(), scope.userId());
     }
 
     private Scope requireSalesAccess(Jwt jwt) {
@@ -96,15 +104,18 @@ public class CustomerController {
 
     private Scope scope(Jwt jwt) {
         return jdbcTemplate.queryForObject(
-                "SELECT company_id, active_branch_id, role FROM app_user WHERE id = ? AND active = true",
-                (rs, rowNum) -> new Scope(rs.getObject("company_id", UUID.class), rs.getObject("active_branch_id", UUID.class),
-                        rs.getString("role")), UUID.fromString(jwt.getSubject()));
+                "SELECT id, company_id, active_branch_id, role FROM app_user WHERE id = ? AND active = true",
+                (rs, rowNum) -> new Scope(rs.getObject("id", UUID.class), rs.getObject("company_id", UUID.class),
+                        rs.getObject("active_branch_id", UUID.class), rs.getString("role")),
+                UUID.fromString(jwt.getSubject()));
     }
 
     private UUID validBranch(UUID branchId, Scope scope) {
         UUID selected = branchId == null ? scope.activeBranchId() : branchId;
-        Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM branch WHERE id = ? AND company_id = ? AND active = true",
-                Integer.class, selected, scope.companyId());
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM branch b JOIN user_branch_access uba ON uba.branch_id = b.id "
+                        + "WHERE b.id = ? AND b.company_id = ? AND b.active = true AND uba.user_id = ?",
+                Integer.class, selected, scope.companyId(), scope.userId());
         if (count == null || count == 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filial inválida.");
         return selected;
     }
@@ -121,5 +132,5 @@ public class CustomerController {
     public record CustomerRequest(String customerType, String name, String document, String email, String phone, UUID branchId) {}
     public record CustomerView(UUID id, UUID branchId, String customerType, String name, String document,
             String email, String phone, boolean active) {}
-    private record Scope(UUID companyId, UUID activeBranchId, String role) {}
+    private record Scope(UUID userId, UUID companyId, UUID activeBranchId, String role) {}
 }
