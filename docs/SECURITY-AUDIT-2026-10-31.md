@@ -14,12 +14,14 @@ Revisão estática da fundação técnica e do controle de acesso da Etapa 04.
 | Segredo de token | Aplicado com validação | Chave HMAC vem de variável de ambiente e exige ao menos 32 bytes |
 | Isolamento por empresa | Aplicado nos endpoints atuais | Sessão, empresa e auditoria filtram pelo usuário autenticado |
 | Acesso por filial de clientes | Aplicado | Consultas e alterações de clientes exigem vínculo explícito do usuário com a filial |
+| Acesso ao estoque | Aplicado | Filial ativa exige vínculo explícito e movimentações são restritas a perfis autorizados |
+| Consistência de estoque | Aplicado | Movimentações executam em transação e bloqueiam o saldo existente durante o cálculo |
 | Separação administrativa | Aplicado | Gerentes não podem criar, promover, desativar ou alterar administradores |
 | Dados sensíveis em repositório | Não encontrados | Credenciais são lidas exclusivamente por variáveis de ambiente |
 
 ## Pendências antes de produção
 
-- Estender a validação de acesso por filial aos módulos de produtos, estoque, vendas e relatórios.
+- Estender a validação de acesso por filial ao módulo de vendas e aos relatórios.
 - Adicionar limitação de tentativas de login e eventos de falha.
 - Implementar renovação e revogação controladas de tokens.
 - Incluir testes de autorização entre empresas, filiais e perfis.
