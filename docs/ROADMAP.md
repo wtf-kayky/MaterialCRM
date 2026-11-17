@@ -10,8 +10,8 @@
 | 06 | Fornecedores, compras e estoque | Concluída nesta PR |
 | 07 | Terminal de vendas e auditoria operacional | Concluída nesta PR |
 | 08 | Financeiro inicial | Concluída nesta PR |
-| 09 | CRM e orçamentos | Próxima etapa |
-| 10 | Dashboard e relatórios | Não iniciada |
+| 09 | CRM e orçamentos iniciais | Concluída nesta PR |
+| 10 | Dashboard e relatórios | Próxima etapa |
 | 11 | Integrações | Não iniciada |
 | 12 | Testes, segurança e estabilidade | Em evolução contínua |
 | 13 | Implantação local | Não iniciada |
@@ -19,4 +19,4 @@
 
 ## Critério de avanço
 
-Uma etapa só avança após sua entrega estar funcional, revisada quanto à segurança e documentada. As entregas das Etapas 01 a 08 foram verificadas no CI de backend e frontend. A Etapa 09 tratará CRM e orçamentos, preservando o mesmo escopo de empresa e filial.
+Uma etapa só avança após sua entrega estar funcional, revisada quanto à segurança e documentada. As entregas das Etapas 01 a 09 foram verificadas no CI de backend e frontend. A Etapa 10 consolidará indicadores apenas do escopo que o usuário está autorizado a visualizar.
