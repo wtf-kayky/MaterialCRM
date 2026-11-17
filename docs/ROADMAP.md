@@ -9,8 +9,8 @@
 | 05 | Clientes e produtos | Concluída nesta PR |
 | 06 | Fornecedores, compras e estoque | Concluída nesta PR |
 | 07 | Terminal de vendas e auditoria operacional | Concluída nesta PR |
-| 08 | Financeiro | Próxima etapa |
-| 09 | CRM e orçamentos | Não iniciada |
+| 08 | Financeiro inicial | Concluída nesta PR |
+| 09 | CRM e orçamentos | Próxima etapa |
 | 10 | Dashboard e relatórios | Não iniciada |
 | 11 | Integrações | Não iniciada |
 | 12 | Testes, segurança e estabilidade | Em evolução contínua |
@@ -19,4 +19,4 @@
 
 ## Critério de avanço
 
-Uma etapa só avança após sua entrega estar funcional, revisada quanto à segurança e documentada. As entregas das Etapas 01 a 07 foram verificadas no CI de backend e frontend. A Etapa 08 começará pelo modelo financeiro, com segregação por empresa e filial e regras explícitas para lançamentos imutáveis.
+Uma etapa só avança após sua entrega estar funcional, revisada quanto à segurança e documentada. As entregas das Etapas 01 a 08 foram verificadas no CI de backend e frontend. A Etapa 09 tratará CRM e orçamentos, preservando o mesmo escopo de empresa e filial.
