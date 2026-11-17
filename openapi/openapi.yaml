@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: MaterialCRM API
+  version: 0.1.0
+  description: API local do MaterialCRM.
+servers:
+  - url: /api
+paths:
+  /v1/me:
+    get:
+      summary: Retorna a identidade autenticada
+      description: Exige access token JWT válido emitido pelo Supabase Auth.
+      security:
+        - supabaseBearer: []
+      responses:
+        '200':
+          description: Identidade autenticada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [userId]
+                properties:
+                  userId:
+                    type: string
+                    format: uuid
+        '401':
+          description: Token ausente, inválido ou expirado
+        '403':
+          description: Acesso não permitido
+components:
+  securitySchemes:
+    supabaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
