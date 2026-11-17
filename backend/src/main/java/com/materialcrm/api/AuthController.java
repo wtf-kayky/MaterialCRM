@@ -67,6 +67,9 @@ public class AuthController {
         if (users.isEmpty() || !users.get(0).active()
                 || !passwordEncoder.matches(request.password(), users.get(0).passwordHash())) {
             loginAttemptLimiter.registerFailure(email, remoteAddress);
+            if (!users.isEmpty()) {
+                recordLoginEvent(UUID.fromString(users.get(0).id()), "LOGIN_FAILED");
+            }
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "E-mail ou senha inválidos.");
         }
 
@@ -85,6 +88,7 @@ public class AuthController {
 
         JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(headers, claims)).getTokenValue();
+        recordLoginEvent(UUID.fromString(user.id()), "LOGIN_SUCCEEDED");
         return Map.of(
                 "accessToken", token,
                 "tokenType", "Bearer",
@@ -98,6 +102,15 @@ public class AuthController {
                 "userId", jwt.getSubject(),
                 "email", jwt.getClaimAsString("email"),
                 "role", jwt.getClaimAsString("role"));
+    }
+
+    private void recordLoginEvent(UUID userId, String eventType) {
+        jdbcTemplate.update("""
+                INSERT INTO audit_event (id, company_id, actor_user_id, event_type, resource_type, resource_id)
+                SELECT ?, company_id, id, ?, 'APP_USER', id
+                FROM app_user
+                WHERE id = ?
+                """, UUID.randomUUID(), eventType, userId);
     }
 
     public record LoginRequest(String email, String password) {}
