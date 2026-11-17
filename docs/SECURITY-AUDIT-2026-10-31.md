@@ -2,7 +2,7 @@
 
 ## Escopo
 
-Revisão estática da fundação técnica e do controle de acesso das Etapas 04 a 07, incluindo o registro de eventos de autenticação.
+Revisão estática da fundação técnica e dos módulos operacionais das Etapas 04 a 10.
 
 ## Controles verificados
 
@@ -14,18 +14,19 @@ Revisão estática da fundação técnica e do controle de acesso das Etapas 04 
 | Segredo de token | Aplicado com validação | Chave HMAC vem de variável de ambiente e exige ao menos 32 bytes |
 | Limite de tentativas de login | Aplicado para a instância local | Cinco falhas por e-mail e endereço remoto em 15 minutos retornam HTTP 429 |
 | Auditoria de autenticação | Aplicado | Sucessos e falhas vinculáveis a uma conta são registrados sem senha, token ou endereço remoto |
-| Isolamento por empresa | Aplicado nos endpoints atuais | Sessão, empresa e auditoria filtram pelo usuário autenticado |
-| Acesso por filial de clientes | Aplicado | Consultas e alterações de clientes exigem vínculo explícito do usuário com a filial |
-| Acesso ao estoque | Aplicado | Filial ativa exige vínculo explícito e movimentações são restritas a perfis autorizados |
-| Consistência de estoque | Aplicado | Movimentações executam em transação e bloqueiam o saldo existente durante o cálculo |
-| Acesso a vendas | Aplicado | Vendas exigem filial autorizada, perfil comercial permitido e cliente da mesma filial |
-| Consistência de vendas | Aplicado | A baixa do estoque ocorre dentro da transação da venda e bloqueia o saldo consultado |
+| Isolamento por empresa e filial | Aplicado nos módulos atuais | Operações usam empresa e filial ativas autorizadas do usuário, não identificadores enviados pelo cliente |
+| Financeiro | Aplicado | Lançamentos são imutáveis nesta etapa; baixa é transacional e auditada |
+| CRM e orçamentos | Aplicado | Cliente, oportunidade e produto são validados na mesma empresa e filial; preço do orçamento vem do catálogo |
+| Dashboard | Aplicado | Indicadores exigem perfil administrativo e são filtrados por empresa e filial autorizadas |
+| Acesso ao estoque e vendas | Aplicado | Filial autorizada, perfis permitidos e transações protegem movimentação e baixa de estoque |
 | Separação administrativa | Aplicado | Gerentes não podem criar, promover, desativar ou alterar administradores |
 | Dados sensíveis em repositório | Não encontrados | Credenciais são lidas exclusivamente por variáveis de ambiente |
 
-## Decisão de auditoria
+## Decisões de segurança
 
-Falhas de autenticação sem conta correspondente não entram na tabela de auditoria: não há empresa confiável para associá-las e registrar o e-mail informado criaria retenção desnecessária de dado pessoal. Elas continuam sujeitas ao limitador de tentativas. Falhas com conta conhecida e sucessos são vinculados ao usuário e à empresa.
+- Falhas de autenticação sem conta correspondente não entram na tabela de auditoria: não há empresa confiável para associá-las e registrar o e-mail informado criaria retenção desnecessária de dado pessoal. Elas continuam sujeitas ao limitador de tentativas.
+- O dashboard não recebe empresa ou filial por parâmetro; o escopo deriva somente da identidade autenticada e do vínculo ativo.
+- Não há atualização ou exclusão direta de lançamentos financeiros nesta etapa; reversões exigirão fluxo auditável próprio.
 
 ## Pendências antes de produção
 
